@@ -1,0 +1,89 @@
+﻿/* Ambient motion layer: pure CSS, runs without scrolling or pointer input. */
+
+@keyframes float-a {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -18px, 0) rotate(3deg); }
+}
+
+@keyframes float-b {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(10px, 14px, 0) rotate(-4deg); }
+}
+
+@keyframes float-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-12px, -10px, 0) scale(1.06); }
+}
+
+@keyframes drift-a {
+  0%, 100% { transform: translate3d(-6%, -4%, 0) scale(1); }
+  50% { transform: translate3d(8%, 6%, 0) scale(1.15); }
+}
+
+@keyframes drift-b {
+  0%, 100% { transform: translate3d(6%, 4%, 0) scale(1.1); }
+  50% { transform: translate3d(-8%, -6%, 0) scale(0.95); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-rev {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes grid-flow {
+  to { transform: translate3d(0, var(--cell), 0); }
+}
+
+@keyframes sheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  60%, 100% { transform: translateX(260%) skewX(-18deg); }
+}
+
+@keyframes cue {
+  0% { transform: scaleY(0); transform-origin: top; }
+  45% { transform: scaleY(1); transform-origin: top; }
+  55% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+
+@keyframes grain {
+  0% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-4%, 3%, 0); }
+  40% { transform: translate3d(3%, -5%, 0); }
+  60% { transform: translate3d(-6%, -2%, 0); }
+  80% { transform: translate3d(5%, 4%, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes pulse-dash {
+  from { stroke-dashoffset: 5; }
+  to { stroke-dashoffset: -95; }
+}
+
+@keyframes float-doc {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -14px, 0) rotate(0.8deg); }
+}
+
+@keyframes scan-beam {
+  0% { transform: translateY(-10%); opacity: 0; }
+  10%, 90% { opacity: 1; }
+  100% { transform: translateY(105%); opacity: 0; }
+}
+
+@keyframes blink-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
