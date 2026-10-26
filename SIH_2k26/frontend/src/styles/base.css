@@ -102,3 +102,7 @@ p { text-wrap: pretty; }
     transition-duration: 0.001ms !important;
   }
 }
+
+.muted { color: var(--text-muted); }
+.nowrap { white-space: nowrap; }
+.link { color: var(--ink); text-underline-offset: 3px; }

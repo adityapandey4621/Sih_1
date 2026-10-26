@@ -148,3 +148,23 @@
 /* ---------- Icon button ---------- */
 .icon-button { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; background: none; border: 1px solid transparent; border-radius: var(--radius); color: var(--ink); cursor: pointer; }
 .icon-button:hover { background: var(--paper-2); }
+
+/* ---------- Select, checkbox, dialog, banners (Phase 2) ---------- */
+select.field__control { appearance: auto; padding-right: var(--s-3); }
+.field--check { gap: var(--s-1); }
+.field__checkrow { display: flex; align-items: flex-start; gap: var(--s-3); }
+.field__checkbox { width: 1.25rem; height: 1.25rem; margin-top: 0.15rem; accent-color: var(--ink); flex: none; }
+.field--check .field__label { font-weight: 500; }
+
+.dialog { width: min(32rem, calc(100vw - 2rem)); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: 0 16px 48px rgb(24 51 74 / 24%); }
+.dialog::backdrop { background: rgb(24 51 74 / 45%); }
+.dialog form { display: grid; gap: var(--s-4); padding: var(--s-5); }
+.dialog__title { font-family: var(--font-display); font-variation-settings: 'opsz' 48; font-size: 1.35rem; font-weight: 500; color: var(--ink); }
+.dialog__body { display: grid; gap: var(--s-3); font-size: 0.9375rem; }
+.dialog__actions { display: flex; justify-content: flex-end; gap: var(--s-2); }
+
+.demo-banner { display: flex; gap: var(--s-3); align-items: flex-start; padding: var(--s-3) var(--s-4); border: 1px dashed var(--amber); border-left: 4px solid var(--amber-fill); background: var(--amber-bg); border-radius: var(--radius); font-size: 0.875rem; color: var(--text); }
+.demo-banner svg { flex: none; margin-top: 0.2rem; color: var(--amber); }
+.verification { display: inline-flex; align-items: center; gap: var(--s-1); font-size: 0.8125rem; font-weight: 600; }
+.verification--verified { color: var(--green); }
+.verification--unverified { color: var(--amber); }

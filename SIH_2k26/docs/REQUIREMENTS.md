@@ -18,7 +18,8 @@
 | `shc_member` | Standing/hearing committee member | |
 | `executive_committee` | Bureau / Executive Committee | Shell only; no decision logic |
 | `sac_member` | Appeals committee | No eligibility rules invented |
-| `rules_admin` | Maintains approved rule versions | **No** decision permissions |
+| `rules_admin` | Rule **author**: drafts configuration, cites sources, submits for review | **No** approval or decision permissions |
+| `rules_approver` | Rule **approver**: requests changes, publishes, retires | Cannot edit drafts; cannot approve a version they contributed to; **no** decision permissions |
 | `auditor` | Audit and monitoring | Read-only |
 | `platform_admin` | Provisions users, reviews access requests | Not a regulatory role |
 
@@ -43,3 +44,31 @@
 - Responsive from 360 px to desktop.
 - No secrets in the repository; `.env.example` has placeholders only.
 - Logs never contain passwords, tokens or invitation links.
+
+## Functional requirements (Phase 2)
+
+- FR-11 Institution users create, save, resume, edit and submit applications for their own institution only; the institution always comes from the signed-in user's stored association.
+- FR-12 Category and academic year select the applicable configuration; the checklist, fields and route come from the approved, published rule version, never from interface code.
+- FR-13 Required vs optional items are shown with an explanation, source and clause reference. "Supplied" never means "verified".
+- FR-14 Submission is a validated backend operation, recorded once, with actor, time and the exact rule version and a frozen snapshot; submitted applications cannot be edited as drafts.
+- FR-15 The rule catalogue has an explicit draft → in review → published → retired lifecycle with separated author and approver roles; published versions are immutable; overlapping or unverified configuration cannot be treated as an approved official rule.
+- FR-16 Missing, conflicting or incomplete configuration never produces a guessed route; it is recorded as a configuration gap for rule staff.
+- FR-17 Attachments: authenticated, allow-listed, size-limited, content-checked, privately stored, access-checked on download, never marked verified.
+- FR-18 Application and configuration changes, refusals and upload failures are audited.
+
+## Rule-source verification gaps (as of 2026-10-26)
+
+No rule in the catalogue is verified against the official AICTE publication. Nothing below may be published as an official rule until closed.
+
+| # | Gap | Effect in the product |
+|---|---|---|
+| G1 | The official APH PDF (`aicte.gov.in/.../APH%20Final.pdf`) returned HTTP 502 on 2026-10-26. All APH content was read via the project's curated reference pack (`docs/sources/`), which states it is not the full APH and not an official publication, and which cross-checked a non-authoritative mirror | Every APH-derived source is `SECONDARY_UNVERIFIED`; official-classified rule versions cannot be published |
+| G2 | **Document checklists** per application category: none are stated in the available sources | Checklist for official drafts is empty (blocks publication). The only checklists are `[DEMO]` items |
+| G3 | Table 2.3 is reproduced only as "selected examples"; the full table, its footnotes and applicability to each academic year (2024-25 … 2026-27) are unverified | Five route shapes seeded as unpublishable drafts, for 2026-27 only |
+| G4 | Reported corrigendum of 2 December 2025 (EVC constitution/modes, SAC constitution) is known only from a secondary report | Recorded as a source; **not encoded** anywhere |
+| G5 | Appeal deadline trigger differs between Ch. I cl. 1.11 (7 days from issue of LoD) and Ch. II cl. 2.24 (7 days from upload of the Executive Committee decision); which governs each category is not established | One policy for cl. 2.24 stored on unpublishable drafts, marked "applicability NOT confirmed"; calendar vs working days unspecified. No global appeal clock |
+| G6 | SLA durations, escalation ladders, pause/resume rules: not established | Deadline policies carry no duration unless sourced; demo policy has none |
+| G7 | Application category list: only the five Table 2.3 row names are known; whether other AICTE application types exist in scope is unverified | Categories flagged "not independently verified" |
+| G8 | Official letter outputs (LoA/LoD/LoR) and the Council ratification step | Out of Phase 2 scope; not modelled |
+
+Closing a gap means: read the official text, create a `VERIFIED_OFFICIAL` source citing clause and page, author a new version citing it, and have a different person publish it.

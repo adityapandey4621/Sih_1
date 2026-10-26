@@ -1,4 +1,4 @@
-﻿import { render } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { vi } from 'vitest'
 import { routes } from '../app/router'
@@ -29,7 +29,9 @@ export function mockApi(handlers: Record<string, Handler>) {
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input).split('?')[0]
     const key = `${init?.method ?? 'GET'} ${path}`
-    calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined })
+    const raw = init?.body
+    const body = raw instanceof FormData ? Object.fromEntries([...raw.entries()].map(([k, v]) => [k, v instanceof File ? { filename: v.name, size: v.size } : v])) : raw ? JSON.parse(String(raw)) : undefined
+    calls.push({ key, body })
     const h = handlers[key]
     if (h === undefined) throw new Error(`Unexpected request: ${key}`)
     if (h === 'network-error') throw new TypeError('Failed to fetch')

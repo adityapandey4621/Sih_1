@@ -5,12 +5,22 @@
 
 const CSRF_COOKIE = 'sih_csrf'
 
+export interface ApiIssue {
+  code: string
+  message: string
+  path: string
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
     public readonly fieldErrors: Record<string, string> = {},
     public readonly retryAfterSeconds?: number,
+    /** Stable machine-readable reason from the backend (e.g. "stale_version", "publication_blocked"). */
+    public readonly code?: string,
+    /** Itemised reasons (e.g. which checklist items block submission). */
+    public readonly issues: ApiIssue[] = [],
   ) {
     super(message)
     this.name = 'ApiError'
@@ -59,7 +69,8 @@ interface ValidationIssue {
 }
 
 function parseError(status: number, payload: unknown, retryAfter: string | null): ApiError {
-  const detail = (payload as { detail?: unknown } | null)?.detail
+  const body = payload as { detail?: unknown; code?: string; issues?: ApiIssue[] } | null
+  const detail = body?.detail
   const retry = retryAfter ? Number.parseInt(retryAfter, 10) : undefined
   if (Array.isArray(detail)) {
     const fields: Record<string, string> = {}
@@ -69,12 +80,13 @@ function parseError(status: number, payload: unknown, retryAfter: string | null)
     }
     return new ApiError(status, 'Please correct the highlighted fields.', fields)
   }
-  if (typeof detail === 'string') return new ApiError(status, detail, {}, retry)
+  if (typeof detail === 'string') return new ApiError(status, detail, {}, retry, body?.code, body?.issues ?? [])
   return new ApiError(status, 'The server returned an unexpected response.', {}, retry)
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** JSON body, or FormData for uploads (the browser then sets the multipart boundary). */
   body?: unknown
   /** Do not treat a 401 as "session expired" (used by sign-in and the initial session probe). */
   expectUnauthorized?: boolean
@@ -83,8 +95,9 @@ export interface RequestOptions {
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = opts.method ?? 'GET'
   const headers: Record<string, string> = { Accept: 'application/json' }
+  const isForm = typeof FormData !== 'undefined' && opts.body instanceof FormData
   if (method !== 'GET') {
-    headers['Content-Type'] = 'application/json'
+    if (!isForm) headers['Content-Type'] = 'application/json'
     headers['X-CSRF-Token'] = await csrfToken()
   }
 
@@ -94,7 +107,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
       method,
       headers,
       credentials: 'same-origin',
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
     })
   } catch {
     throw new ApiError(0, 'Could not reach the server. Check your connection and try again.')

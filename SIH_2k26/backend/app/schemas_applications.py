@@ -44,6 +44,7 @@ class ChecklistStateOut(BaseModel):
     field_kind: str | None
     options: list[str] | None
     validation: dict | None
+    applies_when: dict | None
     clause_ref: str | None
     source_id: str | None
     applicable: bool

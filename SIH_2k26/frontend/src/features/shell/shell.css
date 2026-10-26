@@ -97,3 +97,5 @@
   .profile__who { display: none; }
   .shell__main { padding-top: var(--s-5); }
 }
+
+.sidenav__tag { margin-left: auto; padding: 0 0.4rem; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 0.6875rem; font-weight: 600; color: var(--text-muted); }

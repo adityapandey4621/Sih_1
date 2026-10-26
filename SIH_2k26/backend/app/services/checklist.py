@@ -25,7 +25,7 @@ class ItemState:
         i = self.item
         return {
             "item_key": i["item_key"], "label": i["label"], "explanation": i["explanation"], "required": i["required"],
-            "item_type": i["item_type"], "field_kind": i["field_kind"], "options": i["options"], "validation": i["validation"],
+            "item_type": i["item_type"], "field_kind": i["field_kind"], "options": i["options"], "validation": i["validation"], "applies_when": i.get("applies_when"),
             "clause_ref": i["clause_ref"], "source_id": i["source_id"], "applicable": self.applicable,
             "status": self.status, "error": self.error, "document_id": self.document_id,
         }

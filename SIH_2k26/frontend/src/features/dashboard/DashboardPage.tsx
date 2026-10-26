@@ -21,6 +21,11 @@ export default function DashboardPage() {
       <Alert tone="info" title="No application data yet">
         This is the structure of your workspace. No applications or case records exist in this system yet, and nothing below is sample or live data.
       </Alert>
+      {spec.planned && (
+        <Alert tone="warning" title="Planned — not available in this phase">
+          The workflow for this role is a later phase. This page shows only the intended structure; no actions are possible here yet.
+        </Alert>
+      )}
       {spec.note && <Alert tone="neutral">{spec.note}</Alert>}
       <div className="dash__sections">
         {spec.sections.map((s, i) => (

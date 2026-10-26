@@ -40,4 +40,25 @@ describe('request()', () => {
     expect(err.status).toBe(429)
     expect(err.retryAfterSeconds).toBe(900)
   })
+
+  it('sends FormData as multipart (no JSON content type) with the CSRF header', async () => {
+    document.cookie = 'sih_csrf=t; path=/'
+    const api = mockApi({ 'POST /api/up': { body: { ok: true } } })
+    const body = new FormData()
+    body.set('item_key', 'doc-main')
+    body.set('file', new File(['x'], 'a.pdf'))
+    await request('/api/up', { method: 'POST', body })
+    const init = api.fn.mock.calls[0]![1] as RequestInit
+    expect((init.headers as Record<string, string>)['Content-Type']).toBeUndefined()
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('t')
+    expect(init.body).toBeInstanceOf(FormData)
+  })
+
+  it('exposes the stable error code and itemised issues from the backend', async () => {
+    document.cookie = 'sih_csrf=t; path=/'
+    mockApi({ 'POST /api/x': { status: 422, body: { detail: 'Blocked.', code: 'submission_blocked', issues: [{ code: 'missing', message: 'Main document is required.', path: 'doc-main' }] } } })
+    const err = (await request('/api/x', { method: 'POST', body: {} }).catch((e: unknown) => e)) as ApiError
+    expect(err.code).toBe('submission_blocked')
+    expect(err.issues).toEqual([{ code: 'missing', message: 'Main document is required.', path: 'doc-main' }])
+  })
 })

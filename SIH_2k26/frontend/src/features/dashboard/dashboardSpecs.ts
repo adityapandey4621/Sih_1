@@ -35,6 +35,8 @@ export interface DashboardSpec {
   title: string
   description: string
   icon: LucideIcon
+  /** Shell only: the workflow behind this dashboard is not built yet. Shown as Planned in navigation. */
+  planned?: boolean
   note?: string
   sections: DashboardSection[]
 }
@@ -53,8 +55,14 @@ export const DASHBOARDS: DashboardSpec[] = [
     description: 'Your applications, evidence, requests from scrutiny and obligations in one place.',
     icon: Building2,
     sections: [
-      { title: 'My applications', description: 'Applications your institution has started or submitted.', ...none('applications') },
-      { title: 'Application status', description: 'Where each application currently stands and who must act next.', ...none('status information') },
+      {
+        title: 'My applications',
+        description: 'Applications your institution has started or submitted.',
+        emptyTitle: 'Start or continue an application',
+        emptyBody: 'Create a draft, supply the requirements for your category and year, and submit when it is complete. Everything you start is listed under Applications.',
+        link: { label: 'Open applications', to: '/app/applications', permission: 'application:read_own' },
+      },
+      { title: 'Application status', description: 'Where each application currently stands and who must act next. Processing after submission is not available yet.', ...none('status information') },
       { title: 'Document checklist', description: 'Documents required for each application, and their validity.', ...none('checklists') },
       { title: 'Correction requests', description: 'Deficiencies or clarifications raised during scrutiny.', ...none('correction requests') },
       { title: 'Notifications and deadlines', description: 'Reminders and due dates that apply to your institution.', ...none('notifications') },
@@ -64,6 +72,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'scrutiny',
+    planned: true,
     permission: 'dashboard:scrutiny',
     navLabel: 'Scrutiny',
     title: 'Scrutiny officer dashboard',
@@ -80,6 +89,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'evc-coordination',
+    planned: true,
     permission: 'dashboard:evc-coordination',
     navLabel: 'EVC coordination',
     title: 'EVC coordination dashboard',
@@ -96,6 +106,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'evc-member',
+    planned: true,
     permission: 'dashboard:evc-member',
     navLabel: 'My visits',
     title: 'EVC member dashboard',
@@ -111,6 +122,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'shc',
+    planned: true,
     permission: 'dashboard:shc',
     navLabel: 'SHC',
     title: 'SHC dashboard',
@@ -125,6 +137,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'executive',
+    planned: true,
     permission: 'dashboard:executive',
     navLabel: 'Decision queue',
     title: 'Bureau / Executive Committee dashboard',
@@ -140,6 +153,7 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'appeals',
+    planned: true,
     permission: 'dashboard:appeals',
     navLabel: 'Appeals',
     title: 'SAC appeals dashboard',
@@ -156,14 +170,26 @@ export const DASHBOARDS: DashboardSpec[] = [
   {
     key: 'rules',
     permission: 'dashboard:rules',
-    navLabel: 'Rule catalogue',
+    navLabel: 'Rules overview',
     title: 'Rules administration',
     description: 'Approved rule versions and the status of configuration that drives the workflow.',
     icon: SlidersHorizontal,
-    note: 'Rules administrators maintain approved rule versions. This role carries no regulatory decision permissions.',
+    note: 'Rules administrators draft configuration; a different person, the rules approver, reviews and publishes it. Neither role carries regulatory decision permissions.',
     sections: [
-      { title: 'Approved rule versions', description: 'Versioned rule sets, their effective dates and approval state.', emptyTitle: 'No rule versions yet', emptyBody: 'The versioned rule catalogue is introduced in Phase 2. Nothing is hard-coded in the meantime.' },
-      { title: 'Configuration status', description: 'Whether the system has the configuration it needs to run each process.', emptyTitle: 'Nothing to configure yet', emptyBody: 'Configuration items appear here once the rule catalogue exists.' },
+      {
+        title: 'Approved rule versions',
+        description: 'Versioned rule sets, their sources, effective dates and approval state.',
+        emptyTitle: 'Open the rule catalogue',
+        emptyBody: 'Drafts, reviews, published versions and source verification status live in the catalogue. Nothing regulatory is hard-coded in the interface.',
+        link: { label: 'Open rule catalogue', to: '/app/rules', permission: 'rules:read' },
+      },
+      {
+        title: 'Configuration status',
+        description: 'Categories and years that people tried to apply for but that have no single approved configuration.',
+        emptyTitle: 'Review configuration gaps',
+        emptyBody: 'Each gap is recorded when an application could not start because no approved configuration applied.',
+        link: { label: 'View gaps', to: '/app/rules?tab=gaps', permission: 'rules:read' },
+      },
     ],
   },
   {

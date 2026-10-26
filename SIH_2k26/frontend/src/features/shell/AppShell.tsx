@@ -89,6 +89,7 @@ function SideNav({ items, onNavigate }: { items: NavItem[]; onNavigate: () => vo
                 <NavLink to={item.to} className="sidenav__link" onClick={onNavigate}>
                   <item.icon size={18} aria-hidden="true" />
                   <span>{item.label}</span>
+                  {item.planned && <span className="sidenav__tag">Planned</span>}
                 </NavLink>
               </li>
             ))}
@@ -135,7 +136,7 @@ export function AppShell() {
           </button>
         </div>
         <SideNav items={items} onNavigate={() => setDrawer(false)} />
-        <p className="shell__build">Phase 1 — foundation. No live application data.</p>
+        <p className="shell__build">Phase 2 — intake and rule catalogue. Later workflow stages are not built yet.</p>
       </aside>
       {drawer && <div className="shell__scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
 

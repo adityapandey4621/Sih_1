@@ -12,9 +12,11 @@ FastAPI backend ── routers → services → SQLAlchemy models ── Postgre
 
 ## Boundaries
 
-- **Frontend** never decides who a user is. It asks `GET /api/auth/me` and receives the user's role and **permission list**. Navigation, route guards and dashboard selection are derived from those permissions. The backend re-checks every protected call.
+- **Frontend** never decides who a user is. It asks `GET /api/auth/session` and receives the user's role and **permission list**. Navigation, route guards and dashboard selection are derived from those permissions. The backend re-checks every protected call.
 - **Backend** owns identity, sessions, permissions, access requests, invitations and the audit log. Routers are thin; security primitives live in `security.py`, permissions in `rbac.py`, request authorisation in `deps.py`.
 - **Database** PostgreSQL is authoritative. Schema changes go through Alembic only. Enumerated values are stored as validated strings (not native enums) so adding a role/status is a code change, not a painful migration.
+- **Services** (`app/services`) hold business rules and never import FastAPI: `rules` (authoring, gates, snapshots, selection, lifecycle), `applications` (intake, uploads, submission), `checklist` (pure evaluation against a frozen snapshot). Routers are thin; `presenters` shape responses; `guards` is a second, flush-time line of defence for immutability.
+- **Attachments** go through `storage.LocalStorage` (private directory, generated keys, atomic writes, never overwrite). Replace it with object storage behind the same interface in a later phase.
 - **Integration seams** (not built): `services/email.py` defines an `EmailSender` protocol with a `NotConfiguredSender`; identity is reached only through `deps.get_current_user`, so a future SSO/IdP replaces session lookup without touching dashboards.
 
 ## Authentication design
@@ -29,9 +31,15 @@ FastAPI backend ── routers → services → SQLAlchemy models ── Postgre
 
 `rbac.py` maps each `Role` to a set of `Permission` strings, e.g. `dashboard:scrutiny`, `admin:users`, `audit:read`. A role never implies another role's permissions. `rules_admin` has no decision permissions; `auditor` has only read permissions. Phase 2+ adds permissions here; the UI picks them up through the same `permissions` array.
 
-## Data model (Phase 1)
+## Data model
 
-`institutions`, `users`, `sessions`, `login_attempts`, `access_requests`, `invitations`, `audit_events`.
+**Phase 1:** `institutions`, `users`, `sessions`, `login_attempts`, `access_requests`, `invitations`, `audit_events`.
+
+**Phase 2 — rule catalogue:** `rule_sources`, `application_categories`, `rule_sets`, `rule_versions` (+ `rule_version_sources`, `checklist_items`, `route_stages`, `deadline_policies`, `rule_version_events`), `configuration_gaps`. See `RULE_CATALOGUE.md`.
+
+**Phase 2 — intake:** `applications` (DRAFT/SUBMITTED, bound to a rule version, `row_version` for compare-and-set, `submission_snapshot`), `application_documents` (generated storage key, sha256, `NOT_VERIFIED` constraint, one active file per checklist slot via a partial unique index), `application_events`.
+
+Migrations: `0001` (Phase 1), `0002` (Phase 2). `alembic check` reports no drift.
 
 ## Repository layout
 
@@ -41,3 +49,11 @@ frontend/  Vite SPA
 docs/      roadmap, architecture, requirements, design system, decisions
 docker-compose.yml   PostgreSQL for local development
 ```
+
+## Phase 2 control flow
+
+- **Selecting a configuration:** category + academic year -> exactly one published, in-force version, else a recorded *gap* and a refusal (never a default route).
+- **Evaluating an application:** always against the version's frozen snapshot (`checklist.evaluate`). Submitted applications use the snapshot copied into `submission_snapshot`, so later publication or retirement cannot change them.
+- **Concurrency:** drafts and submissions use `UPDATE ... WHERE row_version = :v AND status = 'DRAFT'` (compare-and-set); submission also locks the row (`FOR UPDATE`). Publication locks the version and its category so overlapping versions cannot both pass the overlap check.
+- **Scoping:** every application query filters by the *stored* user's institution; another institution's record is `404` and audited.
+

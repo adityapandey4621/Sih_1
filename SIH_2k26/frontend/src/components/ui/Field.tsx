@@ -1,4 +1,4 @@
-import { useId, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 
 interface FieldChrome {
@@ -93,5 +93,50 @@ export function PasswordField({ label, hint, error, ...input }: FieldChrome & Om
         </button>
       </div>
     </Wrap>
+  )
+}
+
+interface Option {
+  value: string
+  label: string
+}
+
+export function SelectField({ label, hint, error, optional, options, placeholder = 'Select…', ...select }: FieldChrome & SelectHTMLAttributes<HTMLSelectElement> & { options: Option[]; placeholder?: string }) {
+  const id = useId()
+  return (
+    <Wrap id={id} label={label} hint={hint} error={error} optional={optional}>
+      <select {...select} id={id} className="field__control" aria-invalid={error ? true : undefined} aria-describedby={describedBy(id, hint, error)}>
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </Wrap>
+  )
+}
+
+export function CheckboxField({ label, hint, error, ...input }: FieldChrome & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const id = useId()
+  return (
+    <div className="field field--check" data-invalid={error ? 'true' : undefined}>
+      <div className="field__checkrow">
+        <input {...input} id={id} type="checkbox" className="field__checkbox" aria-invalid={error ? true : undefined} aria-describedby={describedBy(id, hint, error)} />
+        <label className="field__label" htmlFor={id}>
+          {label}
+        </label>
+      </div>
+      {hint && (
+        <p className="field__hint" id={`${id}-hint`}>
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p className="field__error" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </div>
   )
 }
