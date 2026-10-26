@@ -6,10 +6,10 @@ import { PageHeader } from '../shell/PageHeader'
 import { findDashboard } from './dashboardSpecs'
 
 /** One component renders every role's dashboard shell from its spec; access is decided by permission. */
-export default function DashboardPage() {
+export default function DashboardPage({ specKey }: { specKey?: string } = {}) {
   const { key } = useParams()
   const { state, can } = useAuth()
-  const spec = findDashboard(key)
+  const spec = findDashboard(specKey ?? key)
 
   if (state.status !== 'authenticated') return null
   if (!spec) return <Navigate to="/app" replace />

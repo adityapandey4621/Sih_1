@@ -8,12 +8,13 @@ before it leaves nothing behind (the stored file is deleted).
 
 import re
 import uuid
+from collections.abc import Callable
 
 from fastapi import Request, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app import audit, jobs
+from app import audit, jobs, scrutiny_access
 from app.config import Settings
 from app.domain import ApplicationStatus, ItemType
 from app.evidence import reset_processing_row
@@ -55,11 +56,32 @@ def _app_event(db: Session, app: Application, actor: User, action: str, detail: 
 
 def upload_version(
     db: Session, user: User, application_id: uuid.UUID, item_key: str, upload: UploadFile, request: Request | None, settings: Settings, storage: LocalStorage,
+    *, correction: bool = False, on_stored: Callable[[ApplicationDocument], None] | None = None,
 ) -> tuple[Application, str]:
-    """-> (application, "created" | "duplicate"). `duplicate` means identical bytes to the current version: nothing changed."""
+    """-> (application, "created" | "duplicate"). `duplicate` means identical bytes to the current version: nothing changed.
+
+    `correction=True` is the one way a *submitted* application gains a document version: corrected evidence for an issued
+    deficiency notice (the caller has already checked the notice is open). The same validation, storage, versioning and
+    processing pipeline applies. `on_stored` runs in the same transaction, so the notice-response link and the version
+    are saved together or not at all.
+    """
     app = get_owned(db, user, application_id, request)
-    if app.status != ApplicationStatus.DRAFT:
+    if correction:
+        if app.status != ApplicationStatus.SUBMITTED:
+            raise conflict("not_submitted", "Corrected evidence can only be supplied for a submitted application.")
+        db.info["correction_upload"] = True
+    elif app.status != ApplicationStatus.DRAFT:
         raise conflict("not_draft", "Documents cannot be added or replaced after submission.")
+    try:
+        return _store_version(db, user, app, application_id, item_key, upload, request, settings, storage, on_stored)
+    finally:
+        db.info.pop("correction_upload", None)
+
+
+def _store_version(
+    db: Session, user: User, app: Application, application_id: uuid.UUID, item_key: str, upload: UploadFile, request: Request | None, settings: Settings, storage: LocalStorage,
+    on_stored: Callable[[ApplicationDocument], None] | None,
+) -> tuple[Application, str]:
     item = next((i for i in config_of(app)["checklist"] if i["item_key"] == item_key), None)
     if item is None or item["item_type"] != ItemType.DOCUMENT_UPLOAD:
         raise invalid("That checklist item does not take a file upload.")
@@ -105,6 +127,8 @@ def upload_version(
             # Same bytes as the current version (a double-click, a retried request): no new version, no new job.
             storage.delete(key)
             audit.record(db, "application.document_duplicate_ignored", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": item_key, "document_id": str(current.id)})
+            if on_stored is not None:
+                on_stored(current)  # the response may rely on the version already in place
             db.commit()
             db.expire_all()
             return get_owned(db, user, application_id, request), "duplicate"
@@ -129,7 +153,9 @@ def upload_version(
         jobs.enqueue_cross_check(db, app.id, settings, now)
         jobs.add_event(db, doc.id, "uploaded", {"version": doc.version_number, "size": size, "media_type": media}, user.id)
         _app_event(db, app, user, "document_uploaded", {"item_key": item_key, "document_id": str(doc.id), "version": doc.version_number, "sha256": digest, "size": size})
-        audit.record(db, "application.document_uploaded", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": item_key, "document_id": str(doc.id), "version": doc.version_number, "size": size})
+        audit.record(db, "application.document_uploaded", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": item_key, "document_id": str(doc.id), "version": doc.version_number, "size": size, "correction": bool(db.info.get("correction_upload"))})
+        if on_stored is not None:
+            on_stored(doc)
         db.commit()
     except BaseException:
         db.rollback()
@@ -180,7 +206,8 @@ def resolve_access(db: Session, user: User, document_id: uuid.UUID, request: Req
     perms = permissions_for(user.role)
     if Permission.APPLICATION_READ_OWN in perms and user.institution_id is not None and app.institution_id == user.institution_id:
         return Access(doc, app, "owner")
-    if Permission.EVIDENCE_READ in perms and app.status == ApplicationStatus.SUBMITTED:
+    # Reviewer-side access is limited to cases the user is assigned to (reviewer) or has been asked to decide on (issuer).
+    if app.status == ApplicationStatus.SUBMITTED and scrutiny_access.can_read_application_documents(db, user, app):
         return Access(doc, app, "reviewer")
     audit.record(db, "document.access_denied", request=request, actor=user, target_type="document", target_id=doc.id)
     db.commit()

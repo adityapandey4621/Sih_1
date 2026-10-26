@@ -74,7 +74,7 @@ export function FieldList({ fields, onPage, configured }: { fields: ExtractedFie
 const PRIORITY: Record<string, string> = { high: 'High review priority', medium: 'Medium review priority', low: 'Low review priority', info: 'For information' }
 
 /** Preliminary findings. Always labelled as awaiting review and never as a deficiency. */
-export function FindingList({ findings, reviewer }: { findings: Finding[]; reviewer: boolean }) {
+export function FindingList({ findings, reviewer, onReview }: { findings: Finding[]; reviewer: boolean; onReview?: (f: Finding) => void }) {
   if (!findings.length) return <p className="note">No preliminary issues were found by the automated checks. This is not a statement that the evidence is complete or correct.</p>
   return (
     <ul className="findings">
@@ -107,6 +107,14 @@ export function FindingList({ findings, reviewer }: { findings: Finding[]; revie
             {reviewer && f.check_key ? ` · check: ${f.check_key}` : ''}
           </p>
           <p className="finding__disclaimer">{f.disclaimer}</p>
+          {onReview && f.priority !== 'info' && (
+            <div className="inline-actions">
+              <button type="button" className="btn btn--secondary btn--sm" onClick={() => onReview(f)}>
+                Record my own finding about this
+              </button>
+              <span className="muted">An automated issue is only a pointer. It becomes a finding when you record one.</span>
+            </div>
+          )}
         </li>
       ))}
     </ul>

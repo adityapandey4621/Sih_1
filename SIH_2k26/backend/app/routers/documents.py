@@ -7,25 +7,25 @@ institution, or a reviewer (read-only, submitted applications only). Everything 
 import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import Response, StreamingResponse
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app import audit, evidence_presenters as ep
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import CurrentUser, csrf_protect, get_current_user, require_permission
-from app.domain import ApplicationStatus, ExtractionStatus, ScanStatus
-from app.models_applications import Application, ApplicationDocument
-from app.models_processing import PreliminaryFinding, ProcessingJob
+from app.domain import ScanStatus
+from app.models_applications import ApplicationDocument
+from app.models_processing import ProcessingJob
 from app.processing import documents as docproc
 from app.processing.errors import ProcessingError
 from app.rbac import Permission
-from app.schemas_evidence import ApplicationEvidenceOut, DocumentDetailOut, EventOut, ExtractionOut, ReviewListItem, VersionOut
+from app.schemas_evidence import ApplicationEvidenceOut, DocumentDetailOut, EventOut, ExtractionOut, VersionOut
 from app.services import applications as app_svc
 from app.services import documents as docs_svc
-from app.services.errors import ServiceError, not_found
+from app.services.errors import ServiceError
 from app.storage import LocalStorage, StorageError, get_storage
 
 router = APIRouter(tags=["documents"], dependencies=[Depends(csrf_protect)])
@@ -120,32 +120,5 @@ def list_versions(application_id: uuid.UUID, request: Request, current: CurrentU
     return ep.versions_for_application(db, app)
 
 
-@router.get("/api/review/applications", response_model=list[ReviewListItem])
-def review_list(current: CurrentUser = Depends(require_permission(Permission.EVIDENCE_READ)), db: Session = Depends(get_db), limit: int = Query(100, ge=1, le=200)) -> list[ReviewListItem]:
-    """Submitted applications. Phase 3 has no assignment mechanism, so every reviewer sees every submitted application."""
-    apps = db.scalars(
-        select(Application).where(Application.status == ApplicationStatus.SUBMITTED.value).order_by(Application.submitted_at.desc()).limit(limit)
-        .options(selectinload(Application.institution), selectinload(Application.category))
-    ).all()
-    out: list[ReviewListItem] = []
-    for a in apps:
-        docs = ep.current_documents(db, a.id)
-        procs = [d.processing for d in docs.values() if d.processing is not None]
-        open_f = db.scalar(select(func.count()).select_from(PreliminaryFinding).where(PreliminaryFinding.application_id == a.id, PreliminaryFinding.superseded_at.is_(None), PreliminaryFinding.priority != "info")) or 0
-        out.append(ReviewListItem(
-            id=a.id, reference=a.reference, institution_name=a.institution.name, category_name=a.category.name, academic_year=a.academic_year, submitted_at=a.submitted_at,
-            documents=len(docs), still_processing=sum(1 for p in procs if p.extraction_status in (ExtractionStatus.QUEUED, ExtractionStatus.RUNNING)),
-            review_recommended=sum(1 for p in procs if p.review_recommended), open_findings=open_f,
-        ))
-    return out
-
-
-@router.get("/api/review/applications/{application_id}/evidence", response_model=ApplicationEvidenceOut)
-def review_evidence(application_id: uuid.UUID, request: Request, current: CurrentUser = Depends(require_permission(Permission.EVIDENCE_READ)), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> ApplicationEvidenceOut:
-    app = db.scalars(select(Application).where(Application.id == application_id).options(selectinload(Application.institution), selectinload(Application.category), selectinload(Application.rule_version))).one_or_none()
-    if app is None or app.status != ApplicationStatus.SUBMITTED:
-        raise not_found("Application")  # drafts are the institution's own work in progress
-    audit.record(db, "evidence.viewed", request=request, actor=current.user, target_type="application", target_id=app.id)
-    db.commit()
-    return ep.application_evidence(db, app, "reviewer", settings)
+# Reviewer-side listing and evidence now live under /api/scrutiny (scoped to assigned cases): see routers/scrutiny.py.
 

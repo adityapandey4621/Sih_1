@@ -92,3 +92,21 @@ Roles: **scrutiny_officer** gains `evidence:read` (read-only, submitted applicat
 | G10 | Tesseract was tested at one version (5.4.0, English) on synthetic documents; real institutional documents (stamps, tables, handwriting, other languages) have not been tried | Extraction quality on real documents is unknown; uncertainty is reported, not hidden |
 | G11 | The demo extraction fields (name, date, reference) are invented; no verified list of values to extract for any category exists (see G2) | Only DEMO configuration carries extraction fields |
 | G12 | Day-first reading of numeric dates is an assumption (Indian convention), stated in the value's note | Ambiguous dates such as 04/05/2024 are interpreted day-first |
+
+
+## Functional requirements (Phase 4)
+
+- A submitted application enters the scrutiny queue in the same transaction; a route without a scrutiny stage goes to a configuration-exception state, not a guessed route.
+- Cases are visible only within scope: reviewer = assigned, issuer = notice submitted for issuance, coordinator = queue metadata only. Out-of-scope access is "not found" and audited. Auditors have no document access.
+- Assignment follows a configurable boundary: a labelled demonstration assignment for DEMO cases only; official selection unavailable until an authorised interface exists.
+- Reviewers record structured findings linked to an exact document version and page, with a source reference chosen from the frozen rule version or flagged for verification; internal and institution-facing wording are separate fields.
+- Only an authorised issuer issues a formal notice, after inspecting the exact content, with a reason, atomically and idempotently. A draft or prepared notice is never visible to the institution.
+- The response period and due date come only from a usable, sourced policy in the application's frozen configuration; otherwise no due date (demo) or no issuance (non-demo, with a recorded configuration gap).
+- Institutions respond only to their own issued, open notice; corrected evidence is stored as new versions through the Phase 3 pipeline; the response is received, not accepted, and closes nothing.
+- Re-scrutiny is a new round; findings are concluded individually with reasons; unresolved findings need explicit acknowledgement to complete; further notices are separate linked records with no invented cap.
+- Completion never approves or rejects; the next stage comes from the application's own frozen route or a recorded determination.
+- Every action is audited with actor, time, object, state change and reason; in-app notifications are persistent and idempotent and never claim external delivery.
+
+### Additional verification gaps (Phase 4)
+
+G-P4-1 … G-P4-6 and the limits listed at the end of `SCRUTINY.md`. In short: no verified response period, no verified issuing authority, no approved notice template, no verified clarification mechanism or round limit, official APH PDF still unreachable.

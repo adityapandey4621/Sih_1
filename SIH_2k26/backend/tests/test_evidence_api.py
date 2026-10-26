@@ -61,7 +61,7 @@ def test_everything_requires_authentication(world):
     assert anon.post(f"/api/documents/{d}/retry").status_code == 401
     assert anon.get(f"{world.url}/evidence").status_code == 401
     assert anon.get(f"{world.url}/documents").status_code == 401
-    assert anon.get("/api/review/applications").status_code == 401
+    assert anon.get("/api/scrutiny/cases").status_code == 401
 
 
 def test_another_institution_cannot_see_any_part_of_a_document_and_it_is_audited(world):
@@ -86,20 +86,19 @@ def test_unrelated_roles_cannot_read_documents(world):
     admin = Api()
     admin.login("admin@test.example.org")
     assert admin.get(f"/api/documents/{d}/download").status_code == 404
-    assert world.auditor.get("/api/review/applications").status_code == 403 and admin.get("/api/review/applications").status_code == 403
+    assert world.auditor.get("/api/scrutiny/cases").status_code == 403 and admin.get("/api/scrutiny/cases").status_code == 403
 
 
-def test_reviewers_cannot_see_drafts_but_can_read_submitted_applications_read_only(world):
+def test_reviewers_cannot_see_drafts_but_can_read_their_assigned_submitted_applications_read_only(world):
     world.upload()
     drain()
     d = doc_id(world)
     assert world.scrutiny.get(f"/api/documents/{d}").status_code == 404  # a draft is the institution's work in progress
-    assert world.scrutiny.get(f"/api/review/applications/{world.app['id']}/evidence").status_code == 404
-    assert world.scrutiny.get("/api/review/applications").json() == []
+    assert world.scrutiny.get("/api/scrutiny/cases").json()["items"] == []
     world.submit()
     drain()
-    listing = world.scrutiny.get("/api/review/applications").json()
-    assert [x["reference"] for x in listing] == [world.app["reference"]] and listing[0]["documents"] == 1 and listing[0]["institution_name"] == "Test Institute"
+    listing = world.scrutiny.get("/api/scrutiny/cases").json()["items"]
+    assert [x["reference"] for x in listing] == [world.app["reference"]] and listing[0]["processing"]["documents"] == 1 and listing[0]["institution_name"] == "Test Institute"
     for suffix in DOC_ENDPOINTS:
         assert world.scrutiny.get(f"/api/documents/{d}{suffix}").status_code == 200, suffix
     # read-only: none of the owner's actions
@@ -113,7 +112,7 @@ def test_downloads_and_review_views_are_audited(world):
     d = submitted(world)
     assert world.a.get(f"/api/documents/{d}/download").status_code == 200
     assert world.scrutiny.get(f"/api/documents/{d}/download").content.startswith(b"%PDF")
-    world.scrutiny.get(f"/api/review/applications/{world.app['id']}/evidence")
+    world.scrutiny.get(f"{world.case_url}/evidence")
     with SessionLocal() as db:
         acts = [(e.action, e.actor_label) for e in db.scalars(select(AuditEvent).order_by(AuditEvent.occurred_at)) if e.action in ("document.downloaded", "evidence.viewed")]
     assert ("document.downloaded", "a@test.example.org") in acts and ("document.downloaded", "scrutiny@test.example.org") in acts and ("evidence.viewed", "scrutiny@test.example.org") in acts
@@ -128,7 +127,7 @@ def test_owner_view_hides_internal_priorities_and_scanner_notes_reviewer_view_sh
     world.submit()
     drain()
     own = world.evidence()
-    rev = world.scrutiny.get(f"/api/review/applications/{world.app['id']}/evidence").json()
+    rev = world.scrutiny.get(f"{world.case_url}/evidence").json()
     assert own["viewer"] == "owner" and own["institution_name"] is None and rev["viewer"] == "reviewer" and rev["institution_name"] == "Test Institute"
     own_f, rev_f = own["items"][0]["findings"], rev["items"][0]["findings"]
     assert {f["issue_type"] for f in rev_f} >= {"cross_document_inconsistency", "scanner_unavailable"}
@@ -216,7 +215,7 @@ def test_states_use_plain_labels_and_never_claim_verification(world):
 
 def test_documents_are_never_marked_verified_anywhere_in_any_payload(world):
     d = submitted(world)
-    payloads = [world.refresh(), world.evidence(), world.scrutiny.get(f"/api/review/applications/{world.app['id']}/evidence").json(),
+    payloads = [world.refresh(), world.evidence(), world.scrutiny.get(f"{world.case_url}/evidence").json(),
                 world.a.get(f"/api/documents/{d}").json(), world.a.get(f"/api/documents/{d}/extraction").json(), world.a.get(f"{world.url}/documents").json()]
     blob = json.dumps(payloads)
     assert '"VERIFIED"' not in blob
@@ -226,11 +225,19 @@ def test_documents_are_never_marked_verified_anywhere_in_any_payload(world):
     assert statuses == {"NOT_VERIFIED"}
 
 
-def test_nothing_in_the_api_issues_deficiency_notices(world):
+def test_document_processing_and_evidence_endpoints_cannot_issue_notices_or_decide(world):
+    """Phase 3's boundary, still true in Phase 4: evidence/processing never issues a notice. Only the explicit, permission-gated
+    scrutiny endpoint does, and no processing module can reach the notice tables."""
+    from pathlib import Path
+
     all_paths = list(fastapi_app.openapi()["paths"])
-    evidence = [p.lower() for p in all_paths if p.startswith(("/api/documents", "/api/review")) or re.search(r"^/api/applications/\{[a-z_]+\}/(evidence|documents)", p)]
+    evidence = [p.lower() for p in all_paths if p.startswith("/api/documents") or p.endswith("/evidence") or re.search(r"^/api/applications/\{[a-z_]+\}/documents", p)]
     assert evidence and not [p for p in evidence if re.search(r"deficien|notice|approv|reject|decision|verif|accept", p)]
-    assert not [p for p in all_paths if re.search(r"deficien|notice", p.lower())]  # no deficiency/notice endpoint exists in Phase 3
+    assert [p for p in all_paths if p.endswith("/issue")] == ["/api/scrutiny/notices/{notice_id}/issue"]
+    app_dir = Path(__file__).resolve().parents[1] / "app"
+    for module in [*(app_dir / "processing").glob("*.py"), app_dir / "worker.py", app_dir / "jobs.py", app_dir / "evidence.py"]:
+        src = module.read_text(encoding="utf-8")
+        assert "models_scrutiny" not in src and "DeficiencyNotice" not in src, f"{module.name} must not be able to issue or touch notices"
     submitted(world)
     with SessionLocal() as db:
         from app.models_processing import PreliminaryFinding

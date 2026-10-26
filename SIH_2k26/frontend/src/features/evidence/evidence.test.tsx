@@ -10,7 +10,6 @@ afterEach(() => {
 })
 
 const INSTITUTE = makeUser(['dashboard:institute', 'application:create', 'application:read_own', 'application:update_own', 'application:submit', 'document:retry'], { role: 'institute_user', role_label: 'Institution' })
-const SCRUTINY = makeUser(['dashboard:scrutiny', 'evidence:read', 'document:retry'], { role: 'scrutiny_officer', role_label: 'Scrutiny officer' })
 const ERR = (status: number, code: string, message: string) => ({ status, body: { detail: message, code, issues: [] } })
 
 const docRecord = (v: ReturnType<typeof versionOf>) => ({
@@ -169,71 +168,3 @@ describe('document processing panel (institution view)', () => {
   })
 })
 
-describe('reviewer evidence screens', () => {
-  const listItem = { id: 'app-1', reference: 'APP-AAAA-BBBB', institution_name: 'Test Institute', category_name: 'Category A', academic_year: '2026-27', submitted_at: '2026-10-27T10:00:00Z', documents: 2, still_processing: 1, review_recommended: 1, open_findings: 3 }
-  const reviewer = (extra: Parameters<typeof mockApi>[0] = {}) => mockApi({ 'GET /api/auth/session': { body: SCRUTINY }, ...extra })
-
-  it('lists submitted applications and says every one is visible because assignment does not exist yet', async () => {
-    reviewer({ 'GET /api/review/applications': { body: [listItem] } })
-    renderApp('/app/review')
-    const link = await screen.findByRole('link', { name: 'APP-AAAA-BBBB' })
-    const row = link.closest('tr')!
-    expect(within(row).getByText('Test Institute')).toBeInTheDocument()
-    expect(within(row).getByText(/1 still processing/)).toBeInTheDocument()
-    expect(within(row).getByText(/3 preliminary issues/)).toBeInTheDocument()
-    expect(screen.getByText(/no assignment mechanism exists yet/)).toBeInTheDocument()
-  })
-
-  it('shows the page next to the values, with uncertainty, findings with priority, and no scrutiny actions', async () => {
-    const item = itemEvidence({
-      fields: [fieldOf({ status: 'UNCERTAIN', confidence: 54, method: 'OCR', note: 'low recognition confidence (54%)' })],
-      findings: [findingOf({ priority: 'high', check_key: 'application_record' })],
-      pages: [{ page_number: 1, method: 'OCR', status: 'LOW_CONFIDENCE', confidence: 54, char_count: 90, note: null, text: null }],
-    })
-    reviewer({
-      'GET /api/review/applications/app-1/evidence': { body: evidenceOf({ viewer: 'reviewer', status: 'SUBMITTED', institution_name: 'Test Institute', items: [item], ocr_available: true }) },
-      'GET /api/documents/d1/extraction': { body: { document_id: 'd1', version_number: 1, state: docState(), fields: item.fields, pages: [{ ...item.pages[0]!, text: 'Name of the Institution: Test Institute' }] } },
-      'GET /api/documents/d1/history': { body: [{ at: '2026-10-26T10:00:00Z', actor: 'Test Person', action: 'uploaded', detail: null }, { at: '2026-10-26T10:01:00Z', actor: 'System', action: 'processing_finished', detail: null }] },
-    })
-    renderApp('/app/review/app-1')
-    expect(await screen.findByText('Read-only evidence package')).toBeInTheDocument()
-    const img = await screen.findByAltText('Page 1 of main.pdf')
-    expect(img).toHaveAttribute('src', '/api/documents/d1/pages/1/preview')
-    expect(await screen.findByText('Uncertain')).toBeInTheDocument()
-    expect(screen.getByText(/54% confidence/)).toBeInTheDocument()
-    expect(screen.getByText('Low confidence')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Download original/ })).toHaveAttribute('href', '/api/documents/d1/download')
-
-    await userEvent.click(screen.getByRole('tab', { name: /Page text/ }))
-    expect(await screen.findByLabelText('Text of page 1')).toHaveTextContent('Test Institute')
-    await userEvent.click(screen.getByRole('tab', { name: /Findings/ }))
-    expect(screen.getByText('High review priority')).toBeInTheDocument()
-    expect(screen.getByText(/check: application_record/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('tab', { name: /Versions/ }))
-    expect(await screen.findByText('Processing history of this version')).toBeInTheDocument()
-    expect(screen.getByText('Processing finished', { exact: false })).toBeInTheDocument()
-
-    // nothing implies an official action is available
-    expect(screen.queryByRole('button', { name: /approve|reject|deficien|issue (a )?notice|send notice|accept|verify|mark as|record (a )?decision/i })).not.toBeInTheDocument()
-  })
-
-  it('shows a missing file as missing, distinct from an unreadable one', async () => {
-    reviewer({ 'GET /api/review/applications/app-1/evidence': { body: evidenceOf({ viewer: 'reviewer', status: 'SUBMITTED', institution_name: 'X', items: [itemEvidence({ slot_state: null, current: null, versions: [], fields: [], pages: [] })] }) } })
-    renderApp('/app/review/app-1')
-    expect(await screen.findByText(/No file has been submitted/)).toBeInTheDocument()
-    expect(screen.getByText(/A missing file is different from an unreadable one/)).toBeInTheDocument()
-  })
-
-  it('does not exist for institution users', async () => {
-    mockApi({ 'GET /api/auth/session': { body: INSTITUTE } })
-    renderApp('/app/review')
-    expect(await screen.findByText('You do not have access to this page')).toBeInTheDocument()
-  })
-
-  it('is part of the scrutiny navigation, and absent from the institution navigation', async () => {
-    reviewer({ 'GET /api/review/applications': { body: [] } })
-    renderApp('/app/review')
-    expect(await screen.findByText('No submitted applications yet')).toBeInTheDocument()
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).getByText('Evidence review')).toBeInTheDocument()
-  })
-})

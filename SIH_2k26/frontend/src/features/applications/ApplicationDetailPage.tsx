@@ -5,6 +5,7 @@ import { DemoBanner, VerificationNote } from '../../components/ui/Banners'
 import { usePolling } from '../../lib/usePolling'
 import { useResource } from '../../lib/useResource'
 import { EvidencePanel } from '../evidence/EvidencePanel'
+import { ScrutinyStatusPanel } from '../scrutiny/InstitutionPanels'
 import { ResourceView } from '../admin/shared'
 import { PageHeader } from '../shell/PageHeader'
 import { applicationsApi } from './applicationsApi'
@@ -25,8 +26,9 @@ function SubmittedView({ detail, justSubmitted, refreshKey, onProcessingChanged 
         </Alert>
       )}
       <Alert tone="info">
-        This application is read-only. Corrections or new evidence can be added only through an authorised correction process, which is not available in this phase. Later processing stages are not yet implemented.
+        This application is read-only. If scrutiny needs something from you, a formal notice appears below and under Notices, and corrected evidence is supplied through that notice. Later stages (committees, decisions, appeals) are not yet built.
       </Alert>
+      <ScrutinyStatusPanel applicationId={detail.id} refreshKey={refreshKey} />
       {detail.rule_version.is_demo && <DemoBanner text={detail.rule_version.demo_banner} />}
       <SummaryPanel detail={detail} />
       <Section title="Submitted details">

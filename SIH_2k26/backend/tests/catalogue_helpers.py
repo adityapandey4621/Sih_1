@@ -88,8 +88,14 @@ def build_published(
     set_key: str | None = None,
     with_checklist: bool = True,
     publish: bool = True,
+    route_stages: "list[RouteStageIn] | None" = None,
+    deadlines: "list[DeadlinePolicyIn] | None" = None,
+    response_days: int | None = None,
 ) -> Cat:
-    """Create (or reuse) author/approver, a category and a rule set, optionally taken all the way to published."""
+    """Create (or reuse) author/approver, a category and a rule set, optionally taken all the way to published.
+
+    `route_stages` / `deadlines` replace the default route and the (duration-less) response policy. `response_days` adds a
+    CALENDAR response-period policy for deficiency notices backed by the version's own source (DEMO_ONLY for DEMO, verified for OFFICIAL)."""
     settings = get_settings()
     with SessionLocal() as db:
         author = db.query(User).filter_by(email="author@test.example.org").one_or_none()
@@ -111,8 +117,13 @@ def build_published(
             db, v.id,
             VersionContentIn(
                 academic_years=list(years), change_summary="Initial test version", source_ids=[src_id],
-                checklist=checklist(src_id) if with_checklist else [], route=route(src_id),
-                deadlines=[DeadlinePolicyIn(policy_key="resp", label="Response", deadline_type="INTERNAL_SLA", trigger_event="notice", source_id=src_id)],
+                checklist=checklist(src_id) if with_checklist else [], route=route_stages if route_stages is not None else route(src_id),
+                deadlines=deadlines if deadlines is not None else [
+                    DeadlinePolicyIn(
+                        policy_key="resp", label="Response", deadline_type="INTERNAL_SLA", trigger_event="deficiency_notice_issued", source_id=src_id,
+                        **({"duration_value": response_days, "duration_unit": "days", "calendar_convention": "CALENDAR"} if response_days else {}),
+                    )
+                ],
                 row_version=v.row_version,
             ),
             a, None,

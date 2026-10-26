@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { Wordmark } from '../../components/ui/Wordmark'
 import { useAuth } from '../auth/AuthContext'
+import { NotificationBell } from '../scrutiny/NotificationBell'
 import { NAV_GROUPS, visibleNav, type NavItem } from './navigation'
 import './shell.css'
 
@@ -136,7 +137,7 @@ export function AppShell() {
           </button>
         </div>
         <SideNav items={items} onNavigate={() => setDrawer(false)} />
-        <p className="shell__build">Phase 2 — intake and rule catalogue. Later workflow stages are not built yet.</p>
+        <p className="shell__build">Phase 4 — scrutiny, formal notices and re-scrutiny. Committee, decision and appeal stages are not built yet.</p>
       </aside>
       {drawer && <div className="shell__scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
 
@@ -146,6 +147,7 @@ export function AppShell() {
             <Menu size={20} aria-hidden="true" />
           </button>
           <div className="topbar__spacer" />
+          {state.user.permissions.includes('notifications:read') && <NotificationBell />}
           <ProfileMenu />
         </header>
         <main id="main" className="shell__main" tabIndex={-1} ref={mainRef}>

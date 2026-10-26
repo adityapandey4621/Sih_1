@@ -25,13 +25,13 @@ type Handler = MockReply | (() => MockReply | Promise<MockReply>) | 'network-err
 
 /** Stubs fetch with replies keyed by "METHOD /path". Unlisted calls fail loudly. */
 export function mockApi(handlers: Record<string, Handler>) {
-  const calls: { key: string; body: unknown }[] = []
+  const calls: { key: string; body: unknown; url: string }[] = []
   const fn = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input).split('?')[0]
     const key = `${init?.method ?? 'GET'} ${path}`
     const raw = init?.body
     const body = raw instanceof FormData ? Object.fromEntries([...raw.entries()].map(([k, v]) => [k, v instanceof File ? { filename: v.name, size: v.size } : v])) : raw ? JSON.parse(String(raw)) : undefined
-    calls.push({ key, body })
+    calls.push({ key, body, url: String(input) })
     const h = handlers[key]
     if (h === undefined) throw new Error(`Unexpected request: ${key}`)
     if (h === 'network-error') throw new TypeError('Failed to fetch')

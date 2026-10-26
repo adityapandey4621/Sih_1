@@ -76,3 +76,27 @@ No other role gained anything; scrutiny, committee and administrator roles keep 
 Other roles, other institutions and anonymous callers get `404`/`403`/`401` as appropriate. There is **no** endpoint that issues a notice, approves, rejects or verifies anything.
 
 New codes: `quarantined`, `file_unreadable`, `not_retryable`, `already_pending`, `already_succeeded`, `retry_limit`. Document state codes: `received`, `extraction_queued`, `extraction_running`, `extraction_complete`, `review_recommended`, `processing_failed`, `technical_failed`, `held`, `quarantined`, `superseded`.
+
+
+## Phase 4 — scrutiny, notices, responses, notifications
+
+Full permission matrix is asserted in `backend/tests/test_scrutiny_security.py` (every role against every endpoint, over HTTP).
+
+| Method & path | Role | Purpose |
+|---|---|---|
+| `GET /api/scrutiny/cases` | reviewer / coordinator / issuer (scoped) | Queue: filters `state`, `q`, `assigned`, `processing_exceptions`, `page`; per-state `counts`, `state_labels` |
+| `GET /api/scrutiny/cases/{id}` | scoped | Workspace: summary, rounds, findings, notices, assignments, events, `allowed_actions`, hand-off |
+| `GET /api/scrutiny/cases/{id}/evidence` | reviewer, issuer | Phase 3 evidence package for the case |
+| `GET /api/scrutiny/assignable`, `GET /api/scrutiny/handoffs` | coordinator | Candidates; hand-off list |
+| `POST /cases/{id}/assign`, `POST /cases/{id}/handoff/determine` | coordinator | Assignment (demo only) / next-stage determination |
+| `POST /cases/{id}/start`, `PUT /cases/{id}/notes`, `POST /cases/{id}/complete` | reviewer | Start a round, save notes, complete |
+| `POST /cases/{id}/findings`, `PATCH …/findings/{fid}`, `POST …/findings/{fid}/disposition` | reviewer | Record, edit (open only), conclude with reason |
+| `POST /cases/{id}/notices`, `PATCH /api/scrutiny/notices/{nid}`, `POST …/submit`, `POST …/withdraw` | reviewer | Draft, edit, submit for issuance, withdraw |
+| `GET /api/scrutiny/notices/{nid}/preview` | reviewer, issuer | Exact content + hash + policy + blockers |
+| `POST /api/scrutiny/notices/{nid}/issue`, `POST …/return` | issuer | Issue (hash, reason, idempotency key) / return |
+| `GET /api/notices`, `GET /api/notices/{id}` | institution | Issued notices only (drafts are "not found") |
+| `PUT /api/notices/{id}/response`, `POST …/items/{item}/documents`, `POST …/response/submit` | institution | Draft response, corrected evidence (new version), submit (idempotent) |
+| `GET /api/applications/{id}/scrutiny` | institution | Status and timeline in the institution's words |
+| `GET /api/notifications`, `POST …/{id}/read`, `POST …/read-all` | any signed-in user | Own notifications |
+
+New codes: `selection_unavailable`, `invalid_transition`, `open_draft_exists`, `finding_in_notice_draft`, `findings_pending`, `notice_draft_open`, `documents_still_processing`, `unresolved_findings_need_acknowledgement`, `notice_not_draft`, `notice_not_in_review`, `already_issued`, `content_changed`, `unsourced_items_need_acknowledgement`, `response_policy_unresolved`, `notice_template_unavailable`, `idempotency_key_reused`, `notice_not_open`, `response_already_submitted`, `empty_response`. Retired: `GET /api/review/applications`, `GET /api/review/applications/{id}/evidence`.

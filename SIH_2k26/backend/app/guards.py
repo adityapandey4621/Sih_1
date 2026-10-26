@@ -11,6 +11,17 @@ from sqlalchemy.orm import Session
 
 from app.models_applications import Application, ApplicationDocument
 from app.models_catalogue import ChecklistItem, DeadlinePolicy, RouteStage, RuleSource, RuleVersion, RuleVersionSource
+from app.models_scrutiny import (
+    DeficiencyNotice,
+    FindingEvent,
+    NoticeItem,
+    NoticeResponse,
+    NoticeResponseItem,
+    ResponseDocument,
+    ScrutinyCase,
+    ScrutinyEvent,
+    ScrutinyFinding,
+)
 
 
 class ImmutableRecordError(RuntimeError):
@@ -78,4 +89,51 @@ def _guard(session: Session, flush_context, instances) -> None:  # noqa: ANN001
         elif isinstance(obj, ApplicationDocument):
             app = session.get(Application, obj.application_id)
             if app is not None and _original(app, "status") == "SUBMITTED":
+                # The one exception: corrected evidence uploaded for an issued deficiency notice. It may add a new
+                # version and mark the previous one superseded; nothing else about a document may change.
+                if session.info.get("correction_upload") and (obj in session.new or _only_superseded_changed(obj)):
+                    continue
                 raise ImmutableRecordError("Documents of a submitted application cannot be changed.")
+
+        elif isinstance(obj, ScrutinyCase | ScrutinyFinding):
+            # Workflow state moves only through the compare-and-set transition functions (Core UPDATE), never an ORM assignment.
+            if obj not in session.new and (obj in session.deleted or _real_changes(obj)):
+                raise ImmutableRecordError("Scrutiny case and finding state change only through the workflow transitions.")
+
+        elif isinstance(obj, DeficiencyNotice):
+            if obj not in session.new and (obj in session.deleted or (_original(obj, "status") != "DRAFT" or _changed(obj, "status")) and _real_changes(obj)):
+                raise ImmutableRecordError("An issued, withdrawn or closed notice cannot be modified.")
+
+        elif isinstance(obj, NoticeItem):
+            notice = session.get(DeficiencyNotice, obj.notice_id) if obj.notice_id else obj.notice
+            if notice is not None and notice not in session.new and _original(notice, "status") != "DRAFT":
+                raise ImmutableRecordError("A notice's items cannot be changed once the notice has left draft.")
+
+        elif isinstance(obj, NoticeResponse):
+            if obj not in session.new and (obj in session.deleted or (_original(obj, "status") == "SUBMITTED" and _real_changes(obj))):
+                raise ImmutableRecordError("A submitted response cannot be modified.")
+
+        elif isinstance(obj, NoticeResponseItem | ResponseDocument):
+            response = _response_of(session, obj)
+            if response is not None and response not in session.new and _original(response, "status") == "SUBMITTED":
+                raise ImmutableRecordError("A submitted response cannot be modified.")
+
+        elif isinstance(obj, FindingEvent | ScrutinyEvent):
+            if obj not in session.new:
+                raise ImmutableRecordError("History records are append-only.")
+
+
+def _real_changes(obj) -> bool:
+    return any(inspect(obj).attrs[a.key].history.has_changes() for a in inspect(obj).mapper.column_attrs)
+
+
+def _only_superseded_changed(obj) -> bool:
+    changed = {a.key for a in inspect(obj).mapper.column_attrs if inspect(obj).attrs[a.key].history.has_changes()}
+    return changed <= {"superseded_at"}
+
+
+def _response_of(session: Session, obj):
+    if isinstance(obj, NoticeResponseItem):
+        return session.get(NoticeResponse, obj.response_id) if obj.response_id else obj.response
+    item = session.get(NoticeResponseItem, obj.response_item_id) if obj.response_item_id else None
+    return session.get(NoticeResponse, item.response_id) if item is not None else None

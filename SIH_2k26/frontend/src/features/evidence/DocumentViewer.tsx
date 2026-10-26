@@ -21,7 +21,15 @@ const PAGE_STATUS: Record<string, string> = {
 }
 
 /** Two columns: the page as the institution supplied it, and what was read from it, with uncertainty visible. */
-export function DocumentViewer({ item, onChanged }: { item: ItemEvidence; onChanged: () => void }) {
+export interface FindingContext {
+  item_key: string
+  document_id: string
+  version_number: number
+  page: number
+  preliminary_finding_id?: string
+}
+
+export function DocumentViewer({ item, onChanged, onRecordFinding }: { item: ItemEvidence; onChanged: () => void; onRecordFinding?: (ctx: FindingContext) => void }) {
   const [version, setVersion] = useState<Version | null>(item.current)
   const [page, setPage] = useState(1)
   const [tab, setTab] = useState<Tab>('values')
@@ -64,7 +72,9 @@ export function DocumentViewer({ item, onChanged }: { item: ItemEvidence; onChan
           <strong>No file has been submitted</strong> for “{item.label}”.
         </p>
         <p className="note">{item.required ? 'This is a required item.' : 'This item is optional.'} A missing file is different from an unreadable one: nothing was attached to this requirement.</p>
-        {item.findings.length > 0 && <FindingList findings={item.findings} reviewer />}
+        {item.findings.length > 0 && (
+          <FindingList findings={item.findings} reviewer onReview={onRecordFinding ? (f) => onRecordFinding({ item_key: item.item_key, document_id: '', version_number: 0, page: 0, preliminary_finding_id: f.id }) : undefined} />
+        )}
       </div>
     )
   }
@@ -94,6 +104,11 @@ export function DocumentViewer({ item, onChanged }: { item: ItemEvidence; onChan
           <span className="mono muted"> · version {version.version_number}{version.is_current ? ' (current)' : ' (earlier version)'}</span>
         </div>
         <div className="viewer__bar-actions">
+          {onRecordFinding && (
+            <Button size="sm" variant="secondary" onClick={() => onRecordFinding({ item_key: item.item_key, document_id: version.id, version_number: version.version_number, page })}>
+              Record a finding about page {page}
+            </Button>
+          )}
           <StatePill state={state} />
           <a className="btn btn--quiet btn--sm" href={evidenceApi.downloadUrl(version.id)}>
             <Download size={16} aria-hidden="true" /> Download original
@@ -145,7 +160,7 @@ export function DocumentViewer({ item, onChanged }: { item: ItemEvidence; onChan
               [
                 ['values', 'Values'],
                 ['text', 'Page text'],
-                ['findings', `Findings (${item.findings.length})`],
+                ['findings', `Automated issues (${item.findings.length})`],
                 ['versions', `Versions (${item.versions.length})`],
               ] as [Tab, string][]
             ).map(([k, label]) => (
@@ -170,7 +185,17 @@ export function DocumentViewer({ item, onChanged }: { item: ItemEvidence; onChan
               {pageInfo?.text ? <pre className="viewer__text" tabIndex={0} aria-label={`Text of page ${page}`}>{pageInfo.text}</pre> : <p className="note">No text was read from this page. {pageInfo?.note}</p>}
             </div>
           )}
-          {tab === 'findings' && <FindingList findings={item.findings} reviewer />}
+          {tab === 'findings' && (
+            <FindingList
+              findings={item.findings}
+              reviewer
+              onReview={
+                onRecordFinding
+                  ? (f) => onRecordFinding({ item_key: item.item_key, document_id: f.document_id ?? version.id, version_number: f.version_number ?? version.version_number, page: f.pages[0] ?? page, preliminary_finding_id: f.id })
+                  : undefined
+              }
+            />
+          )}
           {tab === 'versions' && (
             <>
               <VersionList versions={item.versions} selectedId={version.id} onSelect={setVersion} downloadUrl={evidenceApi.downloadUrl} />

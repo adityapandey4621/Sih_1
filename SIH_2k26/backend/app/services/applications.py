@@ -297,7 +297,12 @@ def submit(db: Session, user: User, application_id: uuid.UUID, row_version: int,
     audit.record(db, "application.submitted", request=request, actor=user, target_type="application", target_id=app.id, detail={"reference": app.reference, "rule_version_id": str(version.id), "content_hash": version.content_hash})
     db.flush()
     db.expire(app)
-    return get_owned(db, user, app.id, request)
+    submitted = get_owned(db, user, app.id, request)
+    # Same transaction: a submitted application is always in the scrutiny queue (or, if its route has no scrutiny stage, in the exception queue).
+    from app.services import scrutiny  # local import: scrutiny builds on this module
+
+    scrutiny.open_case(db, submitted, user, request)
+    return submitted
 
 
 def institution_summary(inst: Institution) -> dict:

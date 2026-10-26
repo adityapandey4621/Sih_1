@@ -55,3 +55,17 @@ Format: decision — rationale. Reversible unless stated.
 46. **PyMuPDF (AGPL-3.0)** was chosen as the brief names it; its licence must be reviewed before distribution. Pillow guards images (pixel limit checked from the header; Pillow's process-wide limit is not modified).
 47. **Tesseract is driven as a subprocess** (TSV output for per-word confidence), not through a Python wrapper; it is optional at runtime. Tested at 5.4.0 using a portable extraction of the UB-Mannheim build.
 48. **Test fixture resets the PostgreSQL schema** instead of `drop_all` (robust to stale schemas).
+
+
+## Phase 4
+
+- **Scrutiny state is separate from application state.** The application guard (submitted = immutable) is untouched; a case, rounds, findings and notices are their own tables.
+- **Two new application roles, not AICTE designations:** `scrutiny_coordinator` (assignment, route determination; no document contents) and `notice_issuer` (the only way to issue a notice). Reviewers (`scrutiny_officer`) can prepare but never issue. Capabilities are edited in `rbac.py`.
+- **Reviewer scope = assignment.** The Phase 3 `/api/review/*` endpoints (every reviewer saw every submitted application) were retired in favour of `/api/scrutiny/*`; document endpoints now check scope.
+- **Selection boundary.** Demo assignment only for DEMO-classified cases; official selection returns "unavailable". A recorded determination, not a default, resolves conditional or multiple next stages.
+- **No invented regulatory behaviour.** No response duration, deadline, template, round limit or issuing designation is encoded; each is a documented gap (G-P4-1…6). Source references can only be chosen from the frozen rule version.
+- **Notice issuance is idempotent and confirmable.** Hash of the inspected content, reason, idempotency key, compare-and-set transitions and partial unique indexes.
+- **Corrected evidence = narrow exception.** A `correction` mode of the existing upload pipeline plus an ORM guard that allows only a new version and `superseded_at` on a submitted application.
+- **Notifications cannot undo their cause.** Savepoint (PostgreSQL), audit on failure, reconciliation command. SQLite (tests) writes without a savepoint because its driver cannot do them reliably.
+- **Stage identification by convention.** The route stage key `scrutiny` marks the scrutiny stage; if it is absent the case goes to the exception queue.
+- **Informal corrections rejected.** No clarification channel outside formal notices (no source for one).

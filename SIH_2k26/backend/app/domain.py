@@ -159,3 +159,165 @@ class ExtractionKind(StrEnum):
     TEXT = "text"
     DATE = "date"
     IDENTIFIER = "identifier"
+
+
+# ---- scrutiny, notices and responses (Phase 4) ----------------------------------------------------
+# Four lifecycles, deliberately kept apart:
+#   application (DRAFT/SUBMITTED, Phase 2)  - never touched by scrutiny
+#   scrutiny case                            - where the application is in scrutiny / re-scrutiny
+#   deficiency notice                        - draft -> in review -> issued -> response received -> closed
+#   finding                                  - one reviewer's conclusion about one issue
+# Every state change goes through the transition tables below; no handler assigns a status directly.
+
+STAGE_KEY_SCRUTINY = "scrutiny"  # route-stage key that marks the scrutiny / re-scrutiny stage (convention; see docs/DECISIONS.md)
+NOTICE_ISSUED_TRIGGER = "deficiency_notice_issued"  # deadline-policy trigger event that governs a notice's response period
+
+
+class CaseState(StrEnum):
+    AWAITING_ASSIGNMENT = "AWAITING_ASSIGNMENT"  # submitted; no authorised assignment yet
+    READY_FOR_SCRUTINY = "READY_FOR_SCRUTINY"  # assigned; the reviewer has not started
+    UNDER_SCRUTINY = "UNDER_SCRUTINY"
+    AWAITING_NOTICE_DECISION = "AWAITING_NOTICE_DECISION"  # a prepared notice awaits an authorised issuer
+    AWAITING_RESPONSE = "AWAITING_RESPONSE"  # a notice is issued; the institution has not responded
+    AWAITING_RESCRUTINY = "AWAITING_RESCRUTINY"  # response received; the reviewer has not started re-scrutiny
+    UNDER_RESCRUTINY = "UNDER_RESCRUTINY"
+    SCRUTINY_COMPLETED = "SCRUTINY_COMPLETED"  # NOT approval: the case may proceed to its next configured stage
+    CONFIGURATION_EXCEPTION = "CONFIGURATION_EXCEPTION"  # the approved route cannot be applied; nothing is guessed
+
+
+class CaseAction(StrEnum):
+    ASSIGN = "assign"
+    START = "start"
+    PREPARE_NOTICE = "prepare_notice"  # a notice was submitted for issuance
+    RETURN_NOTICE = "return_notice"  # the issuer sent it back (or it was withdrawn) during first-round scrutiny
+    RETURN_NOTICE_RESCRUTINY = "return_notice_rescrutiny"  # ... during re-scrutiny
+    ISSUE_NOTICE = "issue_notice"
+    RECEIVE_RESPONSE = "receive_response"
+    COMPLETE = "complete"
+    FLAG_EXCEPTION = "flag_exception"
+
+
+_CS = CaseState
+CASE_TRANSITIONS: dict[tuple[CaseState, CaseAction], CaseState] = {
+    (_CS.AWAITING_ASSIGNMENT, CaseAction.ASSIGN): _CS.READY_FOR_SCRUTINY,
+    (_CS.READY_FOR_SCRUTINY, CaseAction.START): _CS.UNDER_SCRUTINY,
+    (_CS.UNDER_SCRUTINY, CaseAction.PREPARE_NOTICE): _CS.AWAITING_NOTICE_DECISION,
+    (_CS.UNDER_RESCRUTINY, CaseAction.PREPARE_NOTICE): _CS.AWAITING_NOTICE_DECISION,
+    (_CS.AWAITING_NOTICE_DECISION, CaseAction.RETURN_NOTICE): _CS.UNDER_SCRUTINY,
+    (_CS.AWAITING_NOTICE_DECISION, CaseAction.RETURN_NOTICE_RESCRUTINY): _CS.UNDER_RESCRUTINY,
+    (_CS.AWAITING_NOTICE_DECISION, CaseAction.ISSUE_NOTICE): _CS.AWAITING_RESPONSE,
+    (_CS.AWAITING_RESPONSE, CaseAction.RECEIVE_RESPONSE): _CS.AWAITING_RESCRUTINY,
+    (_CS.AWAITING_RESCRUTINY, CaseAction.START): _CS.UNDER_RESCRUTINY,
+    (_CS.UNDER_SCRUTINY, CaseAction.COMPLETE): _CS.SCRUTINY_COMPLETED,
+    (_CS.UNDER_RESCRUTINY, CaseAction.COMPLETE): _CS.SCRUTINY_COMPLETED,
+    (_CS.AWAITING_ASSIGNMENT, CaseAction.FLAG_EXCEPTION): _CS.CONFIGURATION_EXCEPTION,
+    (_CS.READY_FOR_SCRUTINY, CaseAction.FLAG_EXCEPTION): _CS.CONFIGURATION_EXCEPTION,
+    (_CS.UNDER_SCRUTINY, CaseAction.FLAG_EXCEPTION): _CS.CONFIGURATION_EXCEPTION,
+    (_CS.UNDER_RESCRUTINY, CaseAction.FLAG_EXCEPTION): _CS.CONFIGURATION_EXCEPTION,
+}
+
+
+class RoundKind(StrEnum):
+    INITIAL = "INITIAL"
+    RE_SCRUTINY = "RE_SCRUTINY"
+
+
+class RoundStatus(StrEnum):
+    OPEN = "OPEN"
+    NOTICE_ISSUED = "NOTICE_ISSUED"  # this round ended with a formal notice
+    COMPLETED = "COMPLETED"
+
+
+class FindingState(StrEnum):
+    OPEN = "OPEN"  # recorded by a reviewer
+    NOTICED = "NOTICED"  # included in an issued notice; awaiting the institution's response
+    UNRESOLVED = "UNRESOLVED"  # re-scrutiny: the response does not resolve it
+    RESOLVED = "RESOLVED"
+    NOT_SUPPORTED = "NOT_SUPPORTED"  # the reviewer concluded it is not a valid finding
+
+
+FINDING_TRANSITIONS: dict[FindingState, frozenset[FindingState]] = {
+    FindingState.OPEN: frozenset({FindingState.NOTICED, FindingState.RESOLVED, FindingState.NOT_SUPPORTED}),
+    FindingState.NOTICED: frozenset({FindingState.RESOLVED, FindingState.UNRESOLVED, FindingState.NOT_SUPPORTED}),
+    FindingState.UNRESOLVED: frozenset({FindingState.NOTICED, FindingState.RESOLVED, FindingState.NOT_SUPPORTED}),
+    FindingState.RESOLVED: frozenset(),
+    FindingState.NOT_SUPPORTED: frozenset(),
+}
+FINDING_PENDING_STATES = frozenset({FindingState.OPEN, FindingState.NOTICED})  # must be dispositioned before a round can be completed
+
+
+class Visibility(StrEnum):
+    INTERNAL_ONLY = "INTERNAL_ONLY"
+    ELIGIBLE_FOR_NOTICE = "ELIGIBLE_FOR_NOTICE"
+
+
+class SourceRefStatus(StrEnum):
+    ESTABLISHED = "ESTABLISHED"  # chosen from the case's own frozen rule version
+    NEEDS_VERIFICATION = "NEEDS_VERIFICATION"  # no source established; flagged, never invented
+
+
+class NoticeStatus(StrEnum):
+    DRAFT = "DRAFT"
+    IN_REVIEW = "IN_REVIEW"  # prepared; awaiting an authorised issuer
+    ISSUED = "ISSUED"  # official to the institution; awaiting its response
+    RESPONSE_RECEIVED = "RESPONSE_RECEIVED"
+    CLOSED = "CLOSED"  # re-scrutiny has evaluated the response
+    WITHDRAWN = "WITHDRAWN"  # never issued
+
+
+NOTICE_TRANSITIONS: dict[NoticeStatus, frozenset[NoticeStatus]] = {
+    NoticeStatus.DRAFT: frozenset({NoticeStatus.IN_REVIEW, NoticeStatus.WITHDRAWN}),
+    NoticeStatus.IN_REVIEW: frozenset({NoticeStatus.DRAFT, NoticeStatus.ISSUED, NoticeStatus.WITHDRAWN}),
+    NoticeStatus.ISSUED: frozenset({NoticeStatus.RESPONSE_RECEIVED}),
+    NoticeStatus.RESPONSE_RECEIVED: frozenset({NoticeStatus.CLOSED}),
+    NoticeStatus.CLOSED: frozenset(),
+    NoticeStatus.WITHDRAWN: frozenset(),
+}
+NOTICE_PREPARING = (NoticeStatus.DRAFT.value, NoticeStatus.IN_REVIEW.value)
+NOTICE_LIVE = (NoticeStatus.ISSUED.value, NoticeStatus.RESPONSE_RECEIVED.value)
+NOTICE_VISIBLE_TO_INSTITUTION = (NoticeStatus.ISSUED.value, NoticeStatus.RESPONSE_RECEIVED.value, NoticeStatus.CLOSED.value)
+
+
+class ResponseStatus(StrEnum):
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"
+
+
+class ItemResponseState(StrEnum):
+    NOT_RESPONDED = "NOT_RESPONDED"
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"  # received by the scrutiny system and awaiting re-scrutiny
+    REVIEWED = "REVIEWED"  # re-scrutiny has recorded a conclusion on the linked finding (derived, never stored)
+
+
+class AssignmentSource(StrEnum):
+    DEMO_MANUAL = "DEMO_MANUAL"  # controlled demonstration only; NOT the official AICTE selection process
+    OFFICIAL_SELECTION = "OFFICIAL_SELECTION"  # result of the authorised selection mechanism (no interface exists yet)
+
+
+class HandoffStatus(StrEnum):
+    QUEUED = "QUEUED"  # the next configured stage is known; its module is not part of this phase
+    AWAITING_DETERMINATION = "AWAITING_DETERMINATION"  # the route has a conditional / multiple next stage; a person must determine
+    NO_FURTHER_STAGE = "NO_FURTHER_STAGE"  # the frozen route configures nothing after scrutiny
+    EXCEPTION = "EXCEPTION"  # route missing or unusable
+
+
+class ResponsePolicyState(StrEnum):
+    COMPUTED = "COMPUTED"  # a due date follows from a usable, verified policy
+    DEMO_COMPUTED = "DEMO_COMPUTED"  # as above, from a DEMO_ONLY policy on a demo-classified case
+    NO_DURATION = "NO_DURATION"  # a policy exists but states no duration
+    MISSING = "MISSING"
+    AMBIGUOUS = "AMBIGUOUS"
+    UNVERIFIED = "UNVERIFIED"  # a duration exists but its source is not verified (and this is not a demo case)
+    UNSUPPORTED = "UNSUPPORTED"  # e.g. working days: there is no verified calendar to count with
+
+
+class NotificationEvent(StrEnum):
+    CASE_ENTERED_QUEUE = "CASE_ENTERED_QUEUE"
+    CASE_ASSIGNED = "CASE_ASSIGNED"
+    NOTICE_AWAITING_ISSUANCE = "NOTICE_AWAITING_ISSUANCE"
+    NOTICE_ISSUED = "NOTICE_ISSUED"
+    RESPONSE_SUBMITTED = "RESPONSE_SUBMITTED"
+    READY_FOR_RESCRUTINY = "READY_FOR_RESCRUTINY"
+    SCRUTINY_COMPLETED = "SCRUTINY_COMPLETED"
+    HANDED_OFF = "HANDED_OFF"

@@ -75,3 +75,16 @@ Browser ──► FastAPI (upload: validate, store, enqueue — one transaction)
 ### Phase 3 data model (migration `0003`)
 
 `document_slots`, `document_processing`, `processing_jobs`, `extracted_pages`, `extracted_fields`, `preliminary_findings`, `document_events`; `application_documents` gains `slot_id`, `version_number`, `previous_version_id`, `superseded_at`; `checklist_items` gains `extraction` (JSON). The migration backfills slots and version numbers for existing Phase 2 uploads and rebuilds the "one current file per item" index.
+
+
+## Phase 4 — scrutiny, notices and responses
+
+Full description in `SCRUTINY.md`. Scrutiny state lives in its own tables, so a submitted application and its Phase 3 documents stay immutable. Four lifecycles are kept apart: application (`DRAFT`/`SUBMITTED`), scrutiny case, deficiency notice, finding; each changes only through a transition table in `app/domain.py` applied by a compare-and-set update.
+
+### Phase 4 data model (migration `0004`)
+
+`scrutiny_cases` (one per submitted application; rule version copied, never rebound), `scrutiny_rounds` (initial + one re-scrutiny per response), `scrutiny_assignments` (source, demo flag, who/what assigned, selection reference), `scrutiny_findings` + `scrutiny_finding_events`, `deficiency_notices` (frozen content + SHA-256, authority, policy resolution, due date, idempotency key; partial unique indexes allow one notice in preparation and one live notice per case), `notice_items`, `notice_responses` (one per notice) + `notice_response_items` + `notice_response_documents` (exact document versions), `stage_handoffs`, `scrutiny_events` (append-only; an `institution_visible` flag controls the institution's timeline), `notifications`. The migration backfills a case for every application submitted before it. ORM guards make issued notices, submitted responses and event tables immutable, forbid direct state assignment, and allow a submitted application to gain a document version only through a notice correction.
+
+### Phase 4 control flow
+
+submit → case + round 1 (same transaction) → coordinator assignment (demo, labelled) → reviewer starts, records findings (own conclusions; automated issues are only pointers) → reviewer prepares a notice → issuer inspects the exact content and issues (one transaction, idempotent) → institution sees the notice, uploads corrected evidence (new versions) and submits one response → case moves to re-scrutiny (new round) → reviewer concludes each finding with a reason → completion → hand-off read from the frozen route.

@@ -1,0 +1,70 @@
+/* Scrutiny, notices, responses and notifications. Colour is only ever a supplement: every state also has words and an icon. */
+
+.plain-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--s-1); }
+.plain-list li { overflow-wrap: anywhere; }
+.queue-table td { vertical-align: top; }
+.queue-table td:nth-child(6) { min-width: 14rem; }
+.pager { display: flex; align-items: center; justify-content: flex-end; gap: var(--s-3); margin-top: var(--s-4); flex-wrap: wrap; }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-4) 0; }
+.chip-btn { display: inline-flex; gap: var(--s-2); align-items: baseline; padding: var(--s-1) var(--s-3); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; font: inherit; color: var(--text); }
+.chip-btn:hover { border-color: var(--slate); }
+.chip-btn[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+
+/* the separate kinds of record in the process are always named */
+.stage-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px var(--s-2); font-size: 0.75rem; font-weight: 600; border: 1px solid var(--line-strong); border-left-width: 4px; border-radius: var(--radius-sm); background: var(--paper); color: var(--text); white-space: normal; }
+.stage-tag[data-kind='automated'] { border-left-color: var(--slate); border-style: dashed; border-left-style: solid; }
+.stage-tag[data-kind='finding'] { border-left-color: var(--amber-fill); }
+.stage-tag[data-kind='draft'], .stage-tag[data-kind='in-review'] { border-left-color: var(--slate); border-style: dashed; border-left-style: solid; }
+.stage-tag[data-kind='notice'] { border-left-color: var(--red); background: var(--surface); }
+.stage-tag[data-kind='response'] { border-left-color: var(--teal); }
+.stage-tag[data-kind='rescrutiny'] { border-left-color: var(--ink); }
+.stage-tag[data-kind='completed'], .stage-tag[data-kind='next-stage'] { border-left-color: var(--green); }
+
+.rule-tag { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.case-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-bottom: var(--s-4); }
+.case-tabs { margin: var(--s-4) 0; flex-wrap: wrap; }
+.outstanding { margin-top: var(--s-3); }
+
+.finding-list, .notice-list { display: grid; gap: var(--s-4); margin: 0; padding: 0; list-style: none; }
+.finding-card, .notice-card { display: grid; gap: var(--s-2); padding: var(--s-4); border: 1px solid var(--line-strong); border-left: 4px solid var(--amber-fill); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.finding-card[data-state='RESOLVED'], .finding-card[data-state='NOT_SUPPORTED'] { border-left-color: var(--slate); background: var(--paper); }
+.finding-card[data-state='UNRESOLVED'] { border-left-color: var(--red); }
+.finding-card__block { padding: var(--s-2) var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--paper); }
+.finding-card__block--external { border-style: solid; border-color: var(--teal); background: var(--teal-bg); }
+.finding-card__conclusion { padding: var(--s-2) var(--s-3); border-left: 3px solid var(--ink); background: var(--paper); }
+.check-inline { display: inline-flex; gap: var(--s-2); align-items: center; cursor: pointer; }
+.finding-form fieldset, .notice-editor fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s-3) var(--s-4); margin: 0 0 var(--s-3); }
+.finding-form legend, .notice-editor legend { padding: 0 var(--s-2); font-weight: 640; }
+.visibility { display: grid; gap: var(--s-2); }
+.institution-wording { padding: var(--s-3) var(--s-4); border: 1px solid var(--teal); border-radius: var(--radius); background: var(--teal-bg); margin-bottom: var(--s-3); }
+
+.notice-card[data-status='ISSUED'], .notice-card[data-status='RESPONSE_RECEIVED'], .notice-card[data-status='CLOSED'] { border-left-color: var(--red); }
+.notice-card[data-status='DRAFT'], .notice-card[data-status='IN_REVIEW'], .notice-card[data-status='WITHDRAWN'] { border-left-color: var(--slate); border-style: dashed; border-left-style: solid; }
+.notice-items { margin: 0; padding-left: var(--s-5); display: grid; gap: var(--s-4); }
+.notice-items--cards { padding-left: 0; list-style: none; }
+.notice-item { display: grid; gap: var(--s-2); padding: var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.notice-item[data-state='NOT_RESPONDED'] { border-left: 4px solid var(--amber-fill); }
+.notice-preview { padding: var(--s-4); border: 2px solid var(--ink); border-radius: var(--radius); background: #fff; display: grid; gap: var(--s-3); }
+.issue-panel { display: grid; gap: var(--s-3); margin-top: var(--s-3); }
+.issue-decision { display: grid; gap: var(--s-3); }
+.policy { padding: var(--s-2) var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--paper); }
+.policy[data-state='NO_DURATION'], .policy[data-state='MISSING'], .policy[data-state='AMBIGUOUS'], .policy[data-state='UNVERIFIED'], .policy[data-state='UNSUPPORTED'] { border-left: 4px solid var(--amber-fill); }
+.response-block, .rescrutiny-result { display: grid; gap: var(--s-1); padding: var(--s-2) var(--s-3); border-left: 3px solid var(--teal); background: var(--paper); }
+.rescrutiny-result { border-left-color: var(--ink); }
+blockquote { margin: 0; padding: var(--s-2) var(--s-3); border-left: 3px solid var(--line-strong); white-space: pre-wrap; overflow-wrap: anywhere; }
+.round-list { display: grid; gap: var(--s-3); padding-left: var(--s-5); }
+.assignments li { padding-bottom: var(--s-2); border-bottom: 1px solid var(--line); }
+.notes { margin-top: var(--s-4); }
+
+.notification-list { display: grid; gap: var(--s-3); margin: 0; padding: 0; list-style: none; }
+.notification { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.notification[data-unread] { border-color: var(--ink); border-left-width: 4px; }
+.notification__title { font-weight: 640; }
+.notification__dot { display: inline-block; width: 8px; height: 8px; margin-right: var(--s-2); border-radius: 50%; background: var(--ink); }
+.bell { position: relative; }
+.bell__count { position: absolute; top: -2px; right: -2px; min-width: 1.1rem; padding: 0 3px; border-radius: 999px; background: var(--ink); color: var(--on-ink); font-size: 0.6875rem; line-height: 1.1rem; text-align: center; }
+
+@media (max-width: 40rem) {
+  .notification { flex-direction: column; }
+}

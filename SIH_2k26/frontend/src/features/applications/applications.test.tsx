@@ -239,7 +239,7 @@ describe('permissions in the interface (the backend enforces them regardless)', 
     renderApp('/app')
     await screen.findByRole('heading', { name: 'Scrutiny officer dashboard' })
     expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByText('Applications')).not.toBeInTheDocument()
-    expect(screen.getByText('Planned — not available in this phase')).toBeInTheDocument()
+    expect(screen.queryByText('Planned — not available in this phase')).not.toBeInTheDocument() // scrutiny is a real workflow now; it is no longer labelled as planned
   })
 
   it('denies the applications screens to a role without the permission', async () => {

@@ -11,7 +11,7 @@ Each phase ends with working, tested software and a short handoff. Later phases 
 | 1 | Design system, landing page, authentication, role-based shell | Implemented |
 | 2 | Versioned rule catalogue, application intake, basic safe attachments | Implemented |
 | 3 | Secure document processing: versions, OCR, extraction, preliminary evidence checks | Implemented |
-| 4 | Authorised scrutiny and re-scrutiny, formal deficiency process, corrections as new versions | Planned |
+| 4 | Authorised scrutiny and re-scrutiny, formal deficiency process, corrections as new versions | Implemented (see `SCRUTINY.md`) |
 | 5 | EVC coordination, visits and reports | Planned |
 | 6 | SHC compliance and hearings | Planned |
 | 7 | Executive Committee decision records, eligible SAC appeals, undertakings | Planned |
@@ -41,7 +41,11 @@ See `DOCUMENT_PROCESSING.md`. Acceptance criteria and where they are verified:
 
 Explicitly **not** in Phase 3: formal deficiency notices, scrutiny/re-scrutiny workflow, approval/rejection logic, EVC/SHC/SAC, SLA and notification engine, custom ML, queues or microservices beyond PostgreSQL, document replacement after submission.
 
-## Phase 4 — deferred from Phase 3 (planned)
+## Phase 4 — scrutiny, notices, responses (implemented)
+
+Queue and scoped reviewer workspace; assignment boundary (demo only); structured reviewer findings; formal notices issued only by an authorised issuer with confirmation, idempotency and atomicity; institution notice and response pages with corrected evidence as new versions; re-scrutiny rounds; completion and route-driven hand-off (never approval); persistent in-app notifications; audit throughout. **Not** in Phase 4: EVC, SHC, Executive Committee, SAC, SLA/reminder engine, external messaging, AICTE integration. Open gaps G-P4-1…6 in `SCRUTINY.md`. **Recommended next task:** obtain and verify the official APH text (response period, issuing authority, template, clarification and round limits), then Phase 5.
+
+## Phase 4 — original plan, as deferred from Phase 3
 
 - **First task:** obtain and verify the official APH text so the demo configuration can be replaced with verified, source-cited versions (carried since Phase 2).
 - Reviewer **assignment** scopes (today every scrutiny officer sees every submitted application).

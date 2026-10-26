@@ -14,7 +14,9 @@ from enum import StrEnum
 
 class Role(StrEnum):
     INSTITUTE_USER = "institute_user"
-    SCRUTINY_OFFICER = "scrutiny_officer"
+    SCRUTINY_OFFICER = "scrutiny_officer"  # the assigned reviewer / committee member (application capability, not an AICTE designation)
+    SCRUTINY_COORDINATOR = "scrutiny_coordinator"  # manages queue metadata and the authorised assignment boundary
+    NOTICE_ISSUER = "notice_issuer"  # may issue a formal deficiency notice; never granted implicitly
     EVC_COORDINATOR = "evc_coordinator"
     EVC_MEMBER = "evc_member"
     SHC_MEMBER = "shc_member"
@@ -52,6 +54,16 @@ class Permission(StrEnum):
     EVIDENCE_READ = "evidence:read"  # view submitted applications' documents, extraction results and preliminary findings
     DOCUMENT_RETRY = "document:retry"  # ask for a failed processing job to be tried again (only where retrying can help)
 
+    # Phase 4 — scrutiny. Every one of these is further limited by case scope (assignment) in app/scrutiny_access.py.
+    SCRUTINY_QUEUE = "scrutiny:queue"  # see the queue entries within one's scope
+    SCRUTINY_ASSIGN = "scrutiny:assign"  # record an authorised assignment (coordinator)
+    SCRUTINY_WORK = "scrutiny:work"  # record findings, prepare notices, complete a round (assigned reviewer)
+    SCRUTINY_ROUTE_DETERMINE = "scrutiny:route_determine"  # choose among the next stages the frozen route allows (coordinator)
+    NOTICE_ISSUE = "notice:issue"  # issue / return a formal deficiency notice (authorised issuer only)
+    NOTICE_READ_OWN = "notice:read_own"  # institution: read notices addressed to its own applications
+    NOTICE_RESPOND = "notice:respond"  # institution: respond to its own issued notices
+    NOTIFICATIONS_READ = "notifications:read"  # read one's own in-app notifications
+
     # Phase 2 — rule catalogue
     RULES_READ = "rules:read"
     RULES_EDIT = "rules:edit"  # author: create/edit drafts, submit for review
@@ -67,9 +79,32 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.APPLICATION_UPDATE_OWN,
             Permission.APPLICATION_SUBMIT,
             Permission.DOCUMENT_RETRY,
+            Permission.NOTICE_READ_OWN,
+            Permission.NOTICE_RESPOND,
+            Permission.NOTIFICATIONS_READ,
         }
     ),
-    Role.SCRUTINY_OFFICER: frozenset({Permission.DASHBOARD_SCRUTINY, Permission.EVIDENCE_READ, Permission.DOCUMENT_RETRY}),
+    # The reviewer works assigned cases only. They can prepare a notice for issuance but cannot issue one.
+    Role.SCRUTINY_OFFICER: frozenset(
+        {
+            Permission.DASHBOARD_SCRUTINY, Permission.EVIDENCE_READ, Permission.DOCUMENT_RETRY,
+            Permission.SCRUTINY_QUEUE, Permission.SCRUTINY_WORK, Permission.NOTIFICATIONS_READ,
+        }
+    ),
+    # Manages the queue and the assignment boundary; no document contents, no findings, no notices.
+    Role.SCRUTINY_COORDINATOR: frozenset(
+        {
+            Permission.DASHBOARD_SCRUTINY, Permission.SCRUTINY_QUEUE, Permission.SCRUTINY_ASSIGN,
+            Permission.SCRUTINY_ROUTE_DETERMINE, Permission.NOTIFICATIONS_READ,
+        }
+    ),
+    # Inspects a prepared notice (and the evidence behind it) before deciding to issue it.
+    Role.NOTICE_ISSUER: frozenset(
+        {
+            Permission.DASHBOARD_SCRUTINY, Permission.EVIDENCE_READ, Permission.SCRUTINY_QUEUE,
+            Permission.NOTICE_ISSUE, Permission.NOTIFICATIONS_READ,
+        }
+    ),
     Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION}),
     Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER}),
     Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC}),
@@ -91,6 +126,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
 ROLE_LABELS: dict[Role, str] = {
     Role.INSTITUTE_USER: "Institution",
     Role.SCRUTINY_OFFICER: "Scrutiny officer",
+    Role.SCRUTINY_COORDINATOR: "Scrutiny coordinator",
+    Role.NOTICE_ISSUER: "Notice issuer",
     Role.EVC_COORDINATOR: "EVC coordinator",
     Role.EVC_MEMBER: "EVC member",
     Role.SHC_MEMBER: "SHC member",

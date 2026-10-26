@@ -19,8 +19,11 @@ const AuditLogPage = lazy(() => import('../features/admin/AuditLogPage'))
 const ApplicationsListPage = lazy(() => import('../features/applications/ApplicationsListPage'))
 const NewApplicationPage = lazy(() => import('../features/applications/NewApplicationPage'))
 const ApplicationDetailPage = lazy(() => import('../features/applications/ApplicationDetailPage'))
-const ReviewListPage = lazy(() => import('../features/evidence/ReviewPages').then((m) => ({ default: m.ReviewListPage })))
-const ReviewApplicationPage = lazy(() => import('../features/evidence/ReviewPages').then((m) => ({ default: m.ReviewApplicationPage })))
+const ScrutinyHome = lazy(() => import('../features/scrutiny/ScrutinyHome'))
+const ScrutinyCasePage = lazy(() => import('../features/scrutiny/CasePage'))
+const NoticePage = lazy(() => import('../features/scrutiny/NoticePage'))
+const NoticesListPage = lazy(() => import('../features/scrutiny/InstitutionPanels').then((m) => ({ default: m.NoticesListPage })))
+const NotificationsPage = lazy(() => import('../features/scrutiny/NotificationsPage'))
 const RulesCatalogPage = lazy(() => import('../features/rules/RulesCatalogPage'))
 const RuleVersionPage = lazy(() => import('../features/rules/RuleVersionPage'))
 const RuleEditorPage = lazy(() => import('../features/rules/RuleEditorPage'))
@@ -72,9 +75,13 @@ export const routes = [
               { path: 'applications', element: guarded('application:read_own', <ApplicationsListPage />) },
               { path: 'applications/new', element: guarded('application:create', <NewApplicationPage />) },
               { path: 'applications/:id', element: guarded('application:read_own', <ApplicationDetailPage />) },
-              // Evidence review (read-only; scrutiny actions come in a later phase)
-              { path: 'review', element: guarded('evidence:read', <ReviewListPage />) },
-              { path: 'review/:id', element: guarded('evidence:read', <ReviewApplicationPage />) },
+              // Scrutiny (queue, case workspace) - every call is scope-checked again by the backend
+              { path: 'scrutiny', element: guarded('dashboard:scrutiny', <ScrutinyHome />) },
+              { path: 'scrutiny/:id', element: guarded('scrutiny:queue', <ScrutinyCasePage />) },
+              // Institution: formal notices and responses
+              { path: 'notices', element: guarded('notice:read_own', <NoticesListPage />) },
+              { path: 'notices/:id', element: guarded('notice:read_own', <NoticePage />) },
+              { path: 'notifications', element: guarded('notifications:read', <NotificationsPage />) },
               // Rule catalogue
               { path: 'rules', element: guarded('rules:read', <RulesCatalogPage />) },
               { path: 'rules/versions/:id', element: guarded('rules:read', <RuleVersionPage />) },

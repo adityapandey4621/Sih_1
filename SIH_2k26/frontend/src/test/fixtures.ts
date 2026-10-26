@@ -87,3 +87,58 @@ export const evidenceOf = (over: Partial<ApplicationEvidence> = {}): Application
   items: [itemEvidence()], cross_document_findings: [], disclaimer: 'This is a preliminary, automated observation awaiting scrutiny review. It is not a deficiency notice and does not affect the status of the application.',
   ocr_available: true, malware_scanner: 'none', ...over,
 })
+
+// ---- Phase 4: scrutiny, notices, responses ----
+import type { CaseDetail, InstItem, InstNotice, QueueItem, ReviewFinding, StaffNotice, StaffNoticeItem } from '../features/scrutiny/types'
+
+export const queueItem = (over: Partial<QueueItem> = {}): QueueItem => ({
+  id: 'case-1', application_id: 'app-1', reference: 'APP-AAAA-BBBB', institution_name: 'Test Institute', category_name: 'Category A', academic_year: '2026-27',
+  state: 'UNDER_SCRUTINY', state_label: 'Under scrutiny', assignees: ['Test Reviewer'], submitted_at: '2026-10-26T10:00:00Z', updated_at: '2026-10-26T11:00:00Z',
+  outstanding_actions: ['Record findings or complete the round'], due_at: null, due_basis: null,
+  rule_version: { rule_set: 'set-a', number: 1, classification: 'DEMO', demo_banner: 'DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES' },
+  processing: { documents: 1, still_processing: 0, failed: 0, review_recommended: 0 }, round_number: 1, round_kind: 'INITIAL', exception: null, handoff_status: null, handoff_stage: null, row_version: 3, ...over,
+})
+
+export const reviewFinding = (over: Partial<ReviewFinding> = {}): ReviewFinding => ({
+  id: 'sf-1', sequence: 1, round_number: 1, item_key: 'doc-main', item_label: 'Main document', document_id: 'd1', document_version: 1, document_current_version: 1, document_superseded: false,
+  page_number: 1, issue_type: 'incomplete_information', issue_label: 'Incomplete information', description: 'INTERNAL: the letter does not show a validity period.',
+  institution_text: 'Please show the validity period.', requested_correction: 'Upload a letter that states it.', source_ref: null, source_ref_status: 'NEEDS_VERIFICATION', preliminary_finding_id: null,
+  visibility: 'ELIGIBLE_FOR_NOTICE', state: 'OPEN', state_reason: null, created_by: 'Test Reviewer', created_at: '2026-10-26T11:00:00Z', updated_at: '2026-10-26T11:00:00Z', row_version: 1,
+  notice_reference: null, history: [{ at: '2026-10-26T11:00:00Z', actor: 'Test Reviewer', action: 'recorded', from_state: null, to_state: 'OPEN', reason: null, round_number: 1 }], ...over,
+})
+
+export const staffNoticeItem = (over: Partial<StaffNoticeItem> = {}): StaffNoticeItem => ({
+  id: 'ni-1', position: 1, finding_id: 'sf-1', finding_state: 'OPEN', title: 'Main document', description: 'Please show the validity period.', requested_correction: 'Upload a letter that states it.',
+  item_key: 'doc-main', document_id: 'd1', document_version: 1, document_current_version: 1, page_number: 1, source_ref: null, source_ref_status: 'NEEDS_VERIFICATION',
+  response_state: 'NOT_RESPONDED', response_explanation: '', response_documents: [], ...over,
+})
+
+export const staffNotice = (over: Partial<StaffNotice> = {}): StaffNotice => ({
+  id: 'n-1', reference: 'DN-AAAA-BBBB', sequence: 1, previous_reference: null, status: 'DRAFT', round_number: 1, summary: 'We need the validity period.', items: [staffNoticeItem()],
+  prepared_by: 'Test Reviewer', issued_by: null, issuer_role: null, issued_at: null, issue_reason: null, returned_reason: null, withdrawn_reason: null, response_due_at: null,
+  policy_resolution: null, template: null, content_hash: null, authority: null, row_version: 1, response: null, ...over,
+})
+
+export const caseDetail = (over: Partial<CaseDetail> = {}): CaseDetail => ({
+  queue: queueItem(), scope: ['reviewer'],
+  selection: { mode: 'DEMO_MANUAL', available: true, label: 'Demonstration assignment', notice: 'Demonstration assignment: a coordinator chose a fictional reviewer. This is NOT the official AICTE committee selection process.' },
+  assignments: [], rounds: [{ id: 'r1', number: 1, kind: 'INITIAL', status: 'OPEN', opened_at: '2026-10-26T10:00:00Z', started_at: '2026-10-26T10:30:00Z', closed_at: null, triggered_by_notice: null, outcome: null, outcome_reason: null, review_notes: null, review_notes_at: null, row_version: 1 }],
+  findings: [], notices: [], source_options: [{ key: 'item:doc-main', label: 'Main document', clause_ref: 'cl. 9', verification_status: 'DEMO_ONLY', origin: 'checklist' }],
+  issue_types: { incomplete_information: 'Incomplete information', missing_document: 'Missing document', other: 'Other' }, events: [],
+  allowed_actions: ['record_finding', 'edit_finding', 'conclude_finding', 'save_notes', 'complete', 'prepare_notice'], completion: null, handoff: null,
+  checklist: [{ item_key: 'doc-main', label: 'Main document', explanation: 'Required file.', required: true, item_type: 'document_upload', clause_ref: 'cl. 9', answer: null, document_id: 'd1', document_version: 1, document_filename: 'main.pdf' }],
+  not_an_approval: 'Completing scrutiny is not an approval. Approval or rejection is decided only by the authorised decision process, which is not part of this release.', ...over,
+})
+
+export const instItem = (over: Partial<InstItem> = {}): InstItem => ({
+  id: 'ni-1', position: 1, title: 'Main document', description: 'Please show the validity period.', requested_correction: 'Upload a letter that states it.', item_key: 'doc-main', item_label: 'Main document',
+  accepts_files: true, document_version: 1, document_current_version: 1, page_number: 1, source_label: null, source_note: 'No source reference has been established for this item.',
+  response_state: 'NOT_RESPONDED', response_explanation: '', response_documents: [], ...over,
+})
+
+export const instNotice = (over: Partial<InstNotice> = {}): InstNotice => ({
+  id: 'n-1', reference: 'DN-AAAA-BBBB', sequence: 1, previous_reference: null, status: 'ISSUED', status_label: 'Issued — response awaited', application_id: 'app-1', application_reference: 'APP-AAAA-BBBB',
+  issued_at: '2026-10-27T10:00:00Z', response_due_at: null, due_note: 'No response deadline has been established for this notice. (DEMO ONLY)', demo_notice: 'DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES',
+  template_label: 'DEMO ONLY — demonstration template (no official wording, signature or seal)', summary: 'We need the validity period.', items: [instItem()], response: null, can_respond: true,
+  not_an_approval: 'A deficiency notice is a request for information. It is not a rejection, and your response is not accepted until re-scrutiny has examined it.', ...over,
+})

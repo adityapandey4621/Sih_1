@@ -2,7 +2,7 @@
 
 Integrated approval workflow, compliance monitoring and alert management. The product **supports** the official process; authorised officials make every regulatory decision. It is not an official AICTE service.
 
-**Status: Phase 3 — secure document processing** (versioned uploads, OCR, structured extraction, preliminary evidence checks), on top of the Phase 2 rule catalogue and intake and the Phase 1 foundation. Formal scrutiny and deficiency handling, EVC, SHC, SAC, decisions and the deadline engine are **not** built. See `docs/PROJECT_ROADMAP.md`.
+**Status: Phase 4 — authorised scrutiny, formal deficiency notices and re-scrutiny** (queue, scoped reviewer workspace, notices issued only by an authorised issuer, institution responses with corrected evidence as new versions, hand-off to the next configured stage, in-app notifications), on top of Phase 3 document processing, the Phase 2 rule catalogue and intake and the Phase 1 foundation. EVC, SHC, Executive Committee, SAC, the deadline engine and AICTE integration are **not** built; completing scrutiny is never an approval. See `docs/SCRUTINY.md`. See `docs/PROJECT_ROADMAP.md`.
 
 > **No rule in this system is verified against the official AICTE publication.** The only selectable configuration is seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**. See `docs/RULE_CATALOGUE.md` and the gaps in `docs/REQUIREMENTS.md`.
 
@@ -43,7 +43,7 @@ macOS/Linux: use `source .venv/bin/activate` and `cp`.
 
 Demo accounts (seed): `<role>@demo.example.org`, e.g. `scrutiny.officer@…`, `platform.admin@…`, `auditor@…`; password = your `SEED_PASSWORD`. Roles: institute.user, scrutiny.officer, evc.coordinator, evc.member, shc.member, executive.committee, sac.member, rules.admin (author), rules.approver, auditor, platform.admin.
 
-Document processing: with the worker running, upload a PDF in an application's Documents step and watch its state update. As `scrutiny.officer@…` open **Evidence review** after the application is submitted.
+Document processing: with the worker running, upload a PDF in an application's Documents step and watch its state update. After submission, `scrutiny.coordinator@…` assigns a reviewer (demonstration assignment), `scrutiny.officer@…` works the case, `notice.issuer@…` issues a prepared notice, and the institution responds under **Notices**. Details in `docs/SCRUTINY.md`.
 
 Try it: sign in as `institute.user@…` -> Applications -> New application. As `rules.admin@…` open Rule catalogue to author; as `rules.approver@…` open the version left in review and publish it (it needs an explicit supersede). Publishing as the author is refused.
 
