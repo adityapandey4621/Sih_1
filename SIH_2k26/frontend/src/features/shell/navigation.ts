@@ -1,4 +1,4 @@
-import { FilePlus2, Inbox, Library, ScrollText, UserCog, type LucideIcon } from 'lucide-react'
+import { FilePlus2, FileSearch, Inbox, Library, ScrollText, UserCog, type LucideIcon } from 'lucide-react'
 import { DASHBOARDS, dashboardPath } from '../dashboard/dashboardSpecs'
 
 export interface NavItem {
@@ -31,6 +31,7 @@ const dashboardItems: NavItem[] = DASHBOARDS.map((d) => ({
 export const NAV_ITEMS: NavItem[] = [
   ...dashboardItems,
   { id: 'applications', label: 'Applications', to: '/app/applications', icon: FilePlus2, permission: 'application:read_own', group: 'workspace' },
+  { id: 'evidence-review', label: 'Evidence review', to: '/app/review', icon: FileSearch, permission: 'evidence:read', group: 'workspace' },
   { id: 'rule-catalogue', label: 'Rule catalogue', to: '/app/rules', icon: Library, permission: 'rules:read', group: 'workspace' },
   { id: 'access-requests', label: 'Access requests', to: '/app/admin/access-requests', icon: Inbox, permission: 'admin:access-requests', group: 'administration' },
   { id: 'users', label: 'Users and invitations', to: '/app/admin/users', icon: UserCog, permission: 'admin:users', group: 'administration' },

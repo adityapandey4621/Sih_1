@@ -28,6 +28,35 @@ class Settings(BaseSettings):
     storage_dir: str = "storage"
     max_upload_mb: int = 10
 
+    # ---- document processing (Phase 3) ----
+    # OCR: "tesseract" (needs the executable) or "none". tesseract_cmd empty = look on PATH.
+    ocr_engine: str = "tesseract"
+    tesseract_cmd: str = ""
+    tessdata_prefix: str = ""  # directory holding *.traineddata, if not the executable's default
+    ocr_languages: str = "eng"
+    ocr_dpi: int = 200
+    ocr_timeout_seconds: int = 90
+    ocr_min_confidence: float = 70.0  # below this a page / extracted value is treated as uncertain
+    pdf_min_text_chars: int = 25  # a PDF page with fewer extractable characters is treated as scanned
+    max_pdf_pages: int = 150
+    max_image_pixels: int = 40_000_000
+    max_page_text_chars: int = 100_000
+
+    # Malware scanning: "none" or "clamd". Without a scanner every file is reported as UNSCANNED, never as clean.
+    scanner: str = "none"
+    clamd_host: str = "127.0.0.1"
+    clamd_port: int = 3310
+    clamd_timeout_seconds: int = 30
+    # When true, files are held (not processed) until a scanner is configured. Forced on in production.
+    require_malware_scan: bool = False
+
+    # Durable job queue
+    job_max_attempts: int = 3
+    job_lease_seconds: int = 300
+    job_retry_backoff_seconds: int = 30
+    max_manual_retries: int = 3
+    worker_poll_seconds: float = 2.0
+
     # DEMO ONLY configuration may be published and selected only when this is true. Forced off in production.
     allow_demo_rules: bool = True
 
@@ -48,6 +77,10 @@ class Settings(BaseSettings):
     @property
     def demo_rules_enabled(self) -> bool:
         return self.allow_demo_rules and not self.is_production
+
+    @property
+    def malware_scan_required(self) -> bool:
+        return self.require_malware_scan or self.is_production
 
     @property
     def max_upload_bytes(self) -> int:

@@ -2,14 +2,14 @@
 
 Integrated approval workflow, compliance monitoring and alert management. The product **supports** the official process; authorised officials make every regulatory decision. It is not an official AICTE service.
 
-**Status: Phase 2 — versioned rule catalogue and application intake**, on top of the Phase 1 foundation (design system, landing page, authentication, role-based shell). Scrutiny, OCR, EVC, SHC, SAC, decisions and the deadline engine are **not** built. See `docs/PROJECT_ROADMAP.md`.
+**Status: Phase 3 — secure document processing** (versioned uploads, OCR, structured extraction, preliminary evidence checks), on top of the Phase 2 rule catalogue and intake and the Phase 1 foundation. Formal scrutiny and deficiency handling, EVC, SHC, SAC, decisions and the deadline engine are **not** built. See `docs/PROJECT_ROADMAP.md`.
 
 > **No rule in this system is verified against the official AICTE publication.** The only selectable configuration is seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**. See `docs/RULE_CATALOGUE.md` and the gaps in `docs/REQUIREMENTS.md`.
 
 ```
 backend/   FastAPI + SQLAlchemy + Alembic (PostgreSQL)
 frontend/  Vite + React + TypeScript SPA
-docs/      ROADMAP, ARCHITECTURE, REQUIREMENTS (incl. rule-source gaps), RULE_CATALOGUE, API, DESIGN_SYSTEM, DECISIONS
+docs/      ROADMAP, ARCHITECTURE, REQUIREMENTS (incl. rule-source gaps), RULE_CATALOGUE, DOCUMENT_PROCESSING, API, DESIGN_SYSTEM, DECISIONS
            sources/ = the AICTE reference pack supplied by the team (not official publications)
 ```
 
@@ -29,7 +29,9 @@ copy ..\.env.example .env           # then set SEED_PASSWORD (min. 12 chars) and
 .\.venv\Scripts\alembic upgrade head
 .\.venv\Scripts\python -m app.seed        # demo users, one per role (development only)
 .\.venv\Scripts\python -m app.seed_rules  # catalogue: unpublishable OFFICIAL drafts + published DEMO ONLY configuration
-.\.venv\Scripts\python -m uvicorn app.main:app --reload --port 8000
+# in two terminals:
+.\.venv\Scripts\python -m uvicorn app.main:app --reload --port 8000   # API
+.\.venv\Scripts\python -m app.worker                                         # document-processing worker (needed for uploads to be read)
 
 # 3. Frontend (new terminal)
 cd frontend
@@ -40,6 +42,8 @@ npm run dev                          # http://localhost:5173  (proxies /api to :
 macOS/Linux: use `source .venv/bin/activate` and `cp`.
 
 Demo accounts (seed): `<role>@demo.example.org`, e.g. `scrutiny.officer@…`, `platform.admin@…`, `auditor@…`; password = your `SEED_PASSWORD`. Roles: institute.user, scrutiny.officer, evc.coordinator, evc.member, shc.member, executive.committee, sac.member, rules.admin (author), rules.approver, auditor, platform.admin.
+
+Document processing: with the worker running, upload a PDF in an application's Documents step and watch its state update. As `scrutiny.officer@…` open **Evidence review** after the application is submitted.
 
 Try it: sign in as `institute.user@…` -> Applications -> New application. As `rules.admin@…` open Rule catalogue to author; as `rules.approver@…` open the version left in review and publish it (it needs an explicit supersede). Publishing as the author is refused.
 
@@ -62,9 +66,9 @@ Try it: sign in as `institute.user@…` -> Applications -> New application. As `
 ## Checks
 
 ```powershell
-cd backend;  .\.venv\Scripts\python -m pytest -q                 # SQLite by default (175 pass, 1 PostgreSQL-only test skipped)
+cd backend;  .\.venv\Scripts\python -m pytest -q                 # SQLite by default (288 pass; 2 PostgreSQL-only tests skipped; 3 real-Tesseract tests skip when no Tesseract is configured)
 $env:TEST_DATABASE_URL="postgresql+psycopg://…/sih_test"; pytest  # same suite on PostgreSQL
-cd frontend; npm run typecheck; npm test; npm run build        # 63 tests; no ESLint is configured
+cd frontend; npm run typecheck; npm test; npm run build        # 87 tests; no ESLint is configured
 ```
 
 ## Operations notes

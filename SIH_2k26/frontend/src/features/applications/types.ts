@@ -28,6 +28,16 @@ export interface Source {
 
 export type SourceVerification = 'VERIFIED_OFFICIAL' | 'SECONDARY_UNVERIFIED' | 'PROPOSED_POLICY' | 'DEMO_ONLY'
 
+export interface ExtractionSpec {
+  field_key: string
+  label: string
+  kind: 'text' | 'date' | 'identifier'
+  anchors: string[]
+  required: boolean
+  compare_group: string | null
+  compare_to_application: 'institution_name' | null
+}
+
 export interface ChecklistItem {
   item_key: string
   label: string
@@ -41,6 +51,7 @@ export interface ChecklistItem {
   source_id: string | null
   clause_ref: string | null
   display_order: number
+  extraction?: ExtractionSpec[] | null
 }
 
 export interface RouteStage {
@@ -116,6 +127,8 @@ export interface ApplicationSummary {
   outstanding_action: string | null
 }
 
+import type { DocumentState } from '../evidence/types'
+
 export interface DocumentRecord {
   id: string
   item_key: string
@@ -126,7 +139,10 @@ export interface DocumentRecord {
   uploaded_at: string
   uploaded_by: string | null
   removed: boolean
+  version_number: number
+  is_current: boolean
   verification_status: string
+  state: DocumentState | null
 }
 
 export interface ApplicationDetail extends ApplicationSummary {

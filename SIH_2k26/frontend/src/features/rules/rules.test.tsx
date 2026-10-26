@@ -127,7 +127,7 @@ describe('editor model', () => {
     })
     const payload = toPayload(fromVersion(v), 7)
     expect(payload.row_version).toBe(7)
-    expect(payload.checklist).toEqual(v.checklist)
+    expect(payload.checklist).toEqual(v.checklist.map((i) => ({ ...i, extraction: null })))
     expect(payload.route).toEqual(v.route)
   })
 

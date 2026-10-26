@@ -353,6 +353,7 @@ def build_snapshot(version: RuleVersion) -> dict:
                 "item_key": i.item_key, "label": i.label, "explanation": i.explanation, "required": i.required, "item_type": i.item_type,
                 "field_kind": i.field_kind, "options": i.options, "validation": i.validation, "applies_when": i.applies_when,
                 "source_id": str(i.source_id) if i.source_id else None, "clause_ref": i.clause_ref, "display_order": i.display_order,
+                "extraction": i.extraction or [],
             }
             for i in sorted(version.checklist_items, key=lambda i: (i.display_order, i.item_key))
         ],

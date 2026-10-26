@@ -38,3 +38,20 @@ Format: decision — rationale. Reversible unless stated.
 32. **Effective-date semantics:** a version's effective range is compared with the date of creation/submission; academic years are matched exactly.
 33. **Test environment uses minimal Argon2 cost** (still Argon2id) so the suite stays fast; production is unaffected.
 34. **No duplicate-application detection yet** (an institution may open several drafts for the same category/year); planned with Stage 1 hardening in Phase 3.
+
+## Phase 3
+
+35. **Phase renumbering.** Phase 3 became *document processing*; scrutiny and the deficiency process are Phase 4, and later phases shifted by one.
+36. **Immutable version record, separate processing state.** `application_documents` stays immutable (Phase 2 guard intact); processing writes to its own tables, so work continues after submission without touching submitted records.
+37. **Slot + versions.** One slot per (application, checklist item); versions chained by `previous_version_id`; `superseded_at` marks replaced versions; `current_version_id` points at the live one. Uploads and removals remain draft-only; post-submission correction is Phase 4.
+38. **Same-bytes policy:** identical to the current version → no new version/job (200); identical to an earlier one → new version; the same file on two requirements → allowed, with a low-priority finding.
+39. **PostgreSQL job table + polling worker**, not Redis/Celery: claim by compare-and-set (+ `SKIP LOCKED`), leases, reaping, bounded retries. One `PROCESS_DOCUMENT` job per version (retries re-queue the same row), coalesced cross-check jobs.
+40. **Error taxonomy drives retry** (input → never, config → by a person, transient → bounded backoff). A crashed worker's job is immediately runnable (no backoff); a stale worker cannot write results (ownership check at persist time).
+41. **Extraction is configuration** (`checklist_items.extraction`, frozen in snapshots). The engine is label-anchored and deterministic; fuzzy label matching applies only to OCR text and always yields `UNCERTAIN`. No free-form regex in configuration (closed vocabulary: text/date/identifier) so rule authors cannot introduce pathological patterns.
+42. **Findings are `PRELIMINARY_ISSUE` only** (DB check constraint), recomputed idempotently from current versions with fingerprints; superseded findings are kept. Wording for institutions comes from one catalogue (`processing/issues.py`); informational items (scanner unavailable) are not shown to institutions.
+43. **Server-owned state wording.** The API returns label, explanation, tone and terminal flag; the UI has no enum mapping. Every explanation repeats that checks are technical only.
+44. **Scrutiny officers read all submitted applications** in Phase 3 (no assignment concept yet); drafts are never visible to reviewers. Auditors get no document access.
+45. **Previews are rasterised PNGs** rendered on demand; PDFs are never served inline.
+46. **PyMuPDF (AGPL-3.0)** was chosen as the brief names it; its licence must be reviewed before distribution. Pillow guards images (pixel limit checked from the header; Pillow's process-wide limit is not modified).
+47. **Tesseract is driven as a subprocess** (TSV output for per-word confidence), not through a Python wrapper; it is optional at runtime. Tested at 5.4.0 using a portable extraction of the UB-Mannheim build.
+48. **Test fixture resets the PostgreSQL schema** instead of `drop_all` (robust to stale schemas).

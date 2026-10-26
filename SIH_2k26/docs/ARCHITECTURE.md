@@ -57,3 +57,21 @@ docker-compose.yml   PostgreSQL for local development
 - **Concurrency:** drafts and submissions use `UPDATE ... WHERE row_version = :v AND status = 'DRAFT'` (compare-and-set); submission also locks the row (`FOR UPDATE`). Publication locks the version and its category so overlapping versions cannot both pass the overlap check.
 - **Scoping:** every application query filters by the *stored* user's institution; another institution's record is `404` and audited.
 
+## Phase 3 — document processing
+
+```
+Browser ──► FastAPI (upload: validate, store, enqueue — one transaction)
+                │                         ▲ polls state (3 s while non-terminal)
+                ▼
+          PostgreSQL ◄── python -m app.worker (1..n)  ── LocalStorage (private) / Tesseract (local) / clamd (optional)
+          processing_jobs (leases)        pipeline: validate → scan → text/OCR → fields → cross-check
+```
+
+- **No new infrastructure.** The queue is a PostgreSQL table; the worker is a plain Python process. No Redis, Celery, Kafka or microservices.
+- **Separation:** `app/processing/*` are pure stages (bytes in, results out, no database) and are unit-tested without the website; `app/jobs.py` owns queue semantics; `app/evidence.py` persists results and derives findings; `app/services/documents.py` owns versioned upload and access; routers are thin.
+- **Immutable upload record, mutable processing state:** `application_documents` (a version) is never modified by processing, so the Phase 2 guard on submitted applications still holds; everything that changes lives in `document_processing`, `processing_jobs`, `extracted_pages`, `extracted_fields`, `preliminary_findings`, `document_events`.
+- **Access:** a document is visible to its owning institution or, read-only, to a reviewer (`evidence:read`) once the application is submitted; everything else is 404 and audited.
+
+### Phase 3 data model (migration `0003`)
+
+`document_slots`, `document_processing`, `processing_jobs`, `extracted_pages`, `extracted_fields`, `preliminary_findings`, `document_events`; `application_documents` gains `slot_id`, `version_number`, `previous_version_id`, `superseded_at`; `checklist_items` gains `extraction` (JSON). The migration backfills slots and version numbers for existing Phase 2 uploads and rebuilds the "one current file per item" index.

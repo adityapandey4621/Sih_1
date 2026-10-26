@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-from app.domain import Classification, DeadlineType, FieldKind, ItemType, SourceVerification, is_valid_academic_year
+from app.domain import Classification, DeadlineType, ExtractionKind, FieldKind, ItemType, SourceVerification, is_valid_academic_year
 
 Key = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")]
 Text300 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
@@ -78,6 +78,20 @@ class RuleSetCreateIn(BaseModel):
 # ---- version content ---------------------------------------------------------------------------
 
 
+class ExtractionFieldIn(BaseModel):
+    """A value the processing layer should look for in a document supplied for this checklist item."""
+
+    field_key: Key
+    label: Text300
+    kind: ExtractionKind = ExtractionKind.TEXT
+    # Words that precede the value on the page, e.g. "Name of the Institution". Matching is case/punctuation-insensitive.
+    anchors: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]] = Field(min_length=1, max_length=10)
+    required: bool = True  # absence is reported as a preliminary issue for review (never as a deficiency)
+    # Values sharing a compare_group are compared across documents; compare_to_application compares with the application record.
+    compare_group: Key | None = None
+    compare_to_application: Literal["institution_name"] | None = None
+
+
 class ChecklistItemIn(BaseModel):
     item_key: Key
     label: Text300
@@ -91,9 +105,16 @@ class ChecklistItemIn(BaseModel):
     source_id: uuid.UUID | None = None
     clause_ref: OptText300 = None
     display_order: int = 0
+    extraction: list[ExtractionFieldIn] | None = Field(default=None, max_length=30)
 
     @model_validator(mode="after")
     def _shape(self) -> "ChecklistItemIn":
+        if self.extraction:
+            if self.item_type != ItemType.DOCUMENT_UPLOAD:
+                raise ValueError("Extraction fields apply to document uploads only.")
+            keys = [f.field_key for f in self.extraction]
+            if len(set(keys)) != len(keys):
+                raise ValueError("Duplicate extraction field keys.")
         if self.item_type == ItemType.FORM_FIELD:
             if self.field_kind is None:
                 raise ValueError("A form field needs a field kind.")
@@ -237,6 +258,7 @@ class ChecklistItemOut(ORM):
     source_id: uuid.UUID | None
     clause_ref: str | None
     display_order: int
+    extraction: list[dict] | None = None
 
 
 class RouteStageOut(ORM):

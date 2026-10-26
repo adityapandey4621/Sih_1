@@ -2,7 +2,7 @@ import re
 import uuid
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from app.schemas_applications import (
     ApplicationUpdateIn,
 )
 from app.services import applications as svc
+from app.services import documents as docs_svc
 from app.services.errors import invalid
 from app.storage import LocalStorage, get_storage
 
@@ -81,6 +82,7 @@ def rebind(application_id: uuid.UUID, request: Request, current: CurrentUser = D
 def upload(
     application_id: uuid.UUID,
     request: Request,
+    response: Response,
     item_key: str = Form(),
     file: UploadFile = File(),
     current: CurrentUser = Depends(can_update),
@@ -90,13 +92,16 @@ def upload(
 ) -> ApplicationDetailOut:
     if not _ITEM_KEY.fullmatch(item_key):
         raise invalid("Invalid checklist item.")
-    app = svc.upload_document(db, current.user, application_id, item_key, file, request, settings, storage)
+    app, outcome = docs_svc.upload_version(db, current.user, application_id, item_key, file, request, settings, storage)
+    if outcome == "duplicate":  # identical bytes to the current version: nothing new was created
+        response.status_code = status.HTTP_200_OK
+        response.headers["X-Upload-Result"] = "duplicate_of_current"
     return _detail(db, app, settings)
 
 
 @router.delete("/{application_id}/documents/{document_id}", response_model=ApplicationDetailOut)
 def remove_document(application_id: uuid.UUID, document_id: uuid.UUID, request: Request, current: CurrentUser = Depends(can_update), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> ApplicationDetailOut:
-    app = svc.remove_document(db, current.user, application_id, document_id, request)
+    app = svc.remove_document(db, current.user, application_id, document_id, request, get_settings())
     db.commit()
     return _detail(db, app, settings)
 

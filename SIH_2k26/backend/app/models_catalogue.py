@@ -136,6 +136,8 @@ class ChecklistItem(Base):
     source_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("rule_sources.id"))
     clause_ref: Mapped[str | None] = mapped_column(String(300))
     display_order: Mapped[int] = mapped_column(Integer, default=0)
+    # Which values the document-processing layer should look for in this item's document (data, never code).
+    extraction: Mapped[list | None] = mapped_column(JSON)
 
     version: Mapped[RuleVersion] = relationship(back_populates="checklist_items")
     source: Mapped[RuleSource | None] = relationship()

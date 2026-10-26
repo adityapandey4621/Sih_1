@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { category, demoItems, detail, resolved, summary } from '../../test/fixtures'
+import { category, demoItems, detail, docState, evidenceOf, resolved, summary } from '../../test/fixtures'
 import { makeUser, mockApi, renderApp } from '../../test/helpers'
 import { conditionMet } from './parts'
 
@@ -125,7 +125,7 @@ describe('new application', () => {
 
 describe('draft editor', () => {
   const open = (extra: Parameters<typeof mockApi>[0] = {}, d = detail()) => {
-    const api = mockApi({ ...session, 'GET /api/applications/app-1': { body: d }, ...extra })
+    const api = mockApi({ ...session, 'GET /api/applications/app-1': { body: d }, 'GET /api/applications/app-1/evidence': { body: evidenceOf() }, ...extra })
     renderApp('/app/applications/app-1')
     return api
   }
@@ -168,7 +168,7 @@ describe('draft editor', () => {
 
   it('shows the technical upload error, and an uploaded file as uploaded but never verified', async () => {
     const withFile = detail({
-      documents: [{ id: 'd1', item_key: 'doc-main', original_filename: 'main.pdf', media_type: 'application/pdf', size_bytes: 2048, sha256: 'x', uploaded_at: '2026-10-26T10:00:00Z', uploaded_by: 'Test Person', removed: false, verification_status: 'NOT_VERIFIED' }],
+      documents: [{ id: 'd1', item_key: 'doc-main', original_filename: 'main.pdf', media_type: 'application/pdf', size_bytes: 2048, sha256: 'x', uploaded_at: '2026-10-26T10:00:00Z', uploaded_by: 'Test Person', removed: false, version_number: 1, is_current: true, verification_status: 'NOT_VERIFIED', state: docState({ code: 'extraction_queued', label: 'Extraction queued', tone: 'info', terminal: false }) }],
       checklist_items: demoItems.map((i) => (i.item_key === 'doc-main' ? { ...i, status: 'supplied' as const, document_id: 'd1' } : i)),
     })
     open({ 'POST /api/applications/app-1/documents': ERR(415, 'type_not_allowed', 'Only PDF, PNG and JPEG files are accepted, and the file’s content must match its type.') })
@@ -178,15 +178,15 @@ describe('draft editor', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Only PDF, PNG and JPEG files are accepted')
 
     vi.unstubAllGlobals()
-    mockApi({ ...session, 'GET /api/applications/app-1': { body: withFile } })
+    mockApi({ ...session, 'GET /api/applications/app-1': { body: withFile }, 'GET /api/applications/app-1/evidence': { body: evidenceOf() } })
     document.body.innerHTML = ''
     renderApp('/app/applications/app-1')
     await userEvent.click(await screen.findByRole('button', { name: /^2\s*Documents/ }))
     expect(await screen.findByText('main.pdf')).toBeInTheDocument()
-    expect(screen.getByText('Uploaded')).toBeInTheDocument()
+    expect(screen.getByText('Extraction queued')).toBeInTheDocument() // the server's description of the file's technical state
     expect(screen.getByText('Contents not verified')).toBeInTheDocument()
     expect(screen.queryByText(/^Verified$/)).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Download/ })).toHaveAttribute('href', '/api/applications/app-1/documents/d1/download')
+    expect(screen.getByRole('link', { name: /Download/ })).toHaveAttribute('href', '/api/documents/d1/download')
   })
 
   it('blocks submission until required items are supplied and lists what is outstanding', async () => {

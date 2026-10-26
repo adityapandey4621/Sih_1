@@ -48,6 +48,10 @@ class Permission(StrEnum):
     APPLICATION_UPDATE_OWN = "application:update_own"
     APPLICATION_SUBMIT = "application:submit"
 
+    # Phase 3 — evidence (read-only for reviewers; no scrutiny actions exist yet)
+    EVIDENCE_READ = "evidence:read"  # view submitted applications' documents, extraction results and preliminary findings
+    DOCUMENT_RETRY = "document:retry"  # ask for a failed processing job to be tried again (only where retrying can help)
+
     # Phase 2 — rule catalogue
     RULES_READ = "rules:read"
     RULES_EDIT = "rules:edit"  # author: create/edit drafts, submit for review
@@ -62,9 +66,10 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.APPLICATION_READ_OWN,
             Permission.APPLICATION_UPDATE_OWN,
             Permission.APPLICATION_SUBMIT,
+            Permission.DOCUMENT_RETRY,
         }
     ),
-    Role.SCRUTINY_OFFICER: frozenset({Permission.DASHBOARD_SCRUTINY}),
+    Role.SCRUTINY_OFFICER: frozenset({Permission.DASHBOARD_SCRUTINY, Permission.EVIDENCE_READ, Permission.DOCUMENT_RETRY}),
     Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION}),
     Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER}),
     Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC}),

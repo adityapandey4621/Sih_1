@@ -79,3 +79,83 @@ ACADEMIC_YEAR_RE = re.compile(r"^(\d{4})-(\d{2})$")
 def is_valid_academic_year(value: str) -> bool:
     m = ACADEMIC_YEAR_RE.match(value)
     return bool(m) and (int(m.group(1)) + 1) % 100 == int(m.group(2))
+
+# ---- document processing (Phase 3) ---------------------------------------------------------------
+# Each of these answers a different question. None of them is "verified" or "accepted":
+#   upload      -> a file was stored            (ApplicationDocument)
+#   technical   -> the file is readable          (TechnicalStatus)
+#   scan        -> malware scan outcome          (ScanStatus)
+#   extraction  -> text/fields were read         (ExtractionStatus, FieldStatus)
+#   findings    -> preliminary issues for review (FindingStatus)
+# Regulatory acceptance belongs to the authorised scrutiny process (a later phase).
+
+
+class TechnicalStatus(StrEnum):
+    PENDING = "PENDING"
+    PASSED = "PASSED"  # readable and structurally sound; says nothing about content
+    FAILED = "FAILED"
+
+
+class ScanStatus(StrEnum):
+    PENDING = "PENDING"
+    CLEAN = "CLEAN"
+    INFECTED = "INFECTED"
+    SCANNER_UNAVAILABLE = "SCANNER_UNAVAILABLE"  # nothing was scanned; never to be shown as "clean"
+    ERROR = "ERROR"
+
+
+class ExtractionStatus(StrEnum):
+    NOT_STARTED = "NOT_STARTED"
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"
+    PARTIAL = "PARTIAL"  # some pages could not be read reliably
+    FAILED = "FAILED"
+    BLOCKED = "BLOCKED"  # held: quarantined, or scanning required but unavailable
+    SUPERSEDED = "SUPERSEDED"
+
+
+class JobType(StrEnum):
+    PROCESS_DOCUMENT = "PROCESS_DOCUMENT"
+    CROSS_CHECK = "CROSS_CHECK"
+
+
+class JobStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    RETRY_WAIT = "retry_wait"
+    SUCCEEDED = "succeeded"
+    FAILED_PERMANENT = "failed_permanent"
+    FAILED_EXHAUSTED = "failed_exhausted"
+    CANCELLED = "cancelled"
+
+
+class PageMethod(StrEnum):
+    PDF_TEXT = "PDF_TEXT"
+    OCR = "OCR"
+    NONE = "NONE"
+
+
+class PageStatus(StrEnum):
+    OK = "OK"
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    EMPTY = "EMPTY"
+    OCR_UNAVAILABLE = "OCR_UNAVAILABLE"
+    FAILED = "FAILED"
+
+
+class FieldStatus(StrEnum):
+    EXTRACTED = "EXTRACTED"
+    UNCERTAIN = "UNCERTAIN"
+    NOT_FOUND = "NOT_FOUND"  # "unable to extract": no value is invented
+
+
+class FindingStatus(StrEnum):
+    PRELIMINARY_ISSUE = "PRELIMINARY_ISSUE"  # awaiting scrutiny review; NOT a deficiency notice
+    SUPERSEDED = "SUPERSEDED"  # no longer produced by the current evidence (kept for history)
+
+
+class ExtractionKind(StrEnum):
+    TEXT = "text"
+    DATE = "date"
+    IDENTIFIER = "identifier"

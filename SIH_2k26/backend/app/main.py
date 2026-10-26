@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.guards import ImmutableRecordError
-from app.routers import access_requests, admin, applications, auth, catalogue, rules
+from app.routers import access_requests, admin, applications, auth, catalogue, documents, rules
 from app.services.errors import ServiceError
 
 
@@ -17,7 +17,7 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None if settings.is_production else "/api/openapi.json",
     )
-    for r in (auth.router, access_requests.router, admin.router, catalogue.router, applications.router, rules.router):
+    for r in (auth.router, access_requests.router, admin.router, catalogue.router, applications.router, documents.router, rules.router):
         app.include_router(r)
 
     @app.exception_handler(ServiceError)

@@ -16,7 +16,7 @@ def test_login_success_sets_hardened_cookie_and_returns_permissions(api, make):
     assert r.status_code == 200
     body = r.json()
     assert body["role"] == "scrutiny_officer"
-    assert body["permissions"] == ["dashboard:scrutiny"]
+    assert body["permissions"] == ["dashboard:scrutiny", "document:retry", "evidence:read"]
     set_cookie = r.headers.get_list("set-cookie")
     session_cookie = next(c for c in set_cookie if c.startswith("sih_session="))
     assert "HttpOnly" in session_cookie

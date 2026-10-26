@@ -72,3 +72,23 @@ No rule in the catalogue is verified against the official AICTE publication. Not
 | G8 | Official letter outputs (LoA/LoD/LoR) and the Council ratification step | Out of Phase 2 scope; not modelled |
 
 Closing a gap means: read the official text, create a `VERIFIED_OFFICIAL` source citing clause and page, author a new version citing it, and have a different person publish it.
+
+## Functional requirements (Phase 3)
+
+- FR-19 Uploaded files are versioned per checklist item; replacement never overwrites or deletes an earlier version; identical bytes do not create a version.
+- FR-20 Each version is processed asynchronously and durably: technical validation, malware scan (where a scanner exists), PDF text, OCR for scanned pages, configuration-driven field extraction with page/confidence provenance.
+- FR-21 The system distinguishes: no file; unreadable file; extraction failure; uncertain value; possible inconsistency. None of these is a regulatory deficiency, and none changes an application's status.
+- FR-22 Institutions see the technical state of their own files and institution-appropriate wording of preliminary issues; reviewers (scrutiny officers, read-only) see extracted values, page text, previews, findings with priority, versions and processing history.
+- FR-23 Processing failures are visible and diagnosable; retries are bounded; permanent input errors never loop; stale or crashed workers lose nothing and corrupt nothing.
+- FR-24 Without a malware scanner files are labelled as not scanned; where scanning is required they are held.
+
+Roles: **scrutiny_officer** gains `evidence:read` (read-only, submitted applications only) and `document:retry`; **institute_user** gains `document:retry`. No other role changed.
+
+### Additional verification gaps (Phase 3)
+
+| # | Gap | Effect |
+|---|---|---|
+| G9 | ClamAV was not available; the clamd client is tested only against a fake server implementing INSTREAM framing | Scanning is off by default and every file says "not scanned" |
+| G10 | Tesseract was tested at one version (5.4.0, English) on synthetic documents; real institutional documents (stamps, tables, handwriting, other languages) have not been tried | Extraction quality on real documents is unknown; uncertainty is reported, not hidden |
+| G11 | The demo extraction fields (name, date, reference) are invented; no verified list of values to extract for any category exists (see G2) | Only DEMO configuration carries extraction fields |
+| G12 | Day-first reading of numeric dates is an assumption (Indian convention), stated in the value's note | Ambiguous dates such as 04/05/2024 are interpreted day-first |

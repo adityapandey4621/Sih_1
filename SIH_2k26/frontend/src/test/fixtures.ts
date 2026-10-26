@@ -45,3 +45,45 @@ export const version = (over: Partial<VersionDetail> = {}): VersionDetail => ({
   retirement_reason: null, supersedes_version_id: null, content_hash: null, sources: [], checklist: [], route: [], deadlines: [], events: [], publication_issues: [],
   demo_banner: 'DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES', ...over,
 })
+
+import type { DocumentState } from '../features/evidence/types'
+
+export const docState = (over: Partial<DocumentState> = {}): DocumentState => ({
+  code: 'extraction_complete', label: 'Extraction complete', explanation: 'Text and values were read. These are technical checks on the file only. They are not verification, and do not mean the document has been accepted.',
+  tone: 'success', terminal: true, can_retry: false, technical_status: 'PASSED', scan_status: 'SCANNER_UNAVAILABLE', scan_note: 'Malware scan: NOT performed (no scanner is configured). This file has not been scanned.',
+  extraction_status: 'COMPLETE', page_count: 1, text_method: 'PDF_TEXT', review_recommended: false, error_code: null, ...over,
+})
+
+import type { ApplicationEvidence, ExtractedFieldOut, Finding, ItemEvidence, Version } from '../features/evidence/types'
+
+export const versionOf = (over: Partial<Version> = {}): Version => ({
+  id: 'd1', item_key: 'doc-main', version_number: 1, original_filename: 'main.pdf', media_type: 'application/pdf', size_bytes: 2048, sha256: 'ab'.repeat(32),
+  uploaded_at: '2026-10-26T10:00:00Z', uploaded_by: 'Test Person', is_current: true, previous_version_id: null, state: docState(), ...over,
+})
+
+export const fieldOf = (over: Partial<ExtractedFieldOut> = {}): ExtractedFieldOut => ({
+  field_key: 'institution_name', label: 'Institution name', kind: 'text', status: 'EXTRACTED', value: 'Test Institute', normalised_value: 'test institute', page_number: 1,
+  method: 'PDF_TEXT', confidence: null, evidence: 'Name of the Institution: Test Institute', note: null, document_id: 'd1', version_number: 1, ...over,
+})
+
+export const findingOf = (over: Partial<Finding> = {}): Finding => ({
+  id: 'f1', issue_type: 'cross_document_inconsistency', label: 'Possible inconsistency between values', status: 'PRELIMINARY_ISSUE', priority: null, check_key: null, item_key: 'doc-main',
+  document_id: 'd1', version_number: 1, pages: [1], values: [{ source: 'document', page: 1, value: 'Elsewhere College' }, { source: 'application_record', value: 'Test Institute' }],
+  explanation: '“Institution name” in this document differs from the institution name on the application record.', plain_text: 'A value in this document appears different from the same value elsewhere in your application. A reviewer will look at it.',
+  rule_ref: 'Main document (cl. 9)', review_recommended: true, created_at: '2026-10-26T10:05:00Z',
+  disclaimer: 'This is a preliminary, automated observation awaiting scrutiny review. It is not a deficiency notice and does not affect the status of the application.', ...over,
+})
+
+export const itemEvidence = (over: Partial<ItemEvidence> = {}): ItemEvidence => {
+  const v = versionOf()
+  return {
+    item_key: 'doc-main', label: 'Main document', explanation: 'Required file.', required: true, clause_ref: 'cl. 9', configured_fields: ['Institution name', 'Document date'],
+    slot_state: v.state, current: v, versions: [v], fields: [fieldOf()], pages: [{ page_number: 1, method: 'PDF_TEXT', status: 'OK', confidence: null, char_count: 40, note: null, text: null }], findings: [], ...over,
+  }
+}
+
+export const evidenceOf = (over: Partial<ApplicationEvidence> = {}): ApplicationEvidence => ({
+  application_id: 'app-1', reference: 'APP-AAAA-BBBB', status: 'DRAFT', academic_year: '2026-27', category_name: 'Category A', institution_name: null, viewer: 'owner',
+  items: [itemEvidence()], cross_document_findings: [], disclaimer: 'This is a preliminary, automated observation awaiting scrutiny review. It is not a deficiency notice and does not affect the status of the application.',
+  ocr_available: true, malware_scanner: 'none', ...over,
+})

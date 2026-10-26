@@ -33,6 +33,7 @@ from app.schemas_catalogue import (
     VersionEventOut,
     VersionSummaryOut,
 )
+from app import evidence_presenters as ep
 from app.services import applications as app_svc
 from app.services import checklist as cl
 from app.services import rules as rules_svc
@@ -170,11 +171,13 @@ def application_detail(db: Session, app: Application, settings: Settings) -> App
     if app.status == ApplicationStatus.DRAFT:
         res = rules_svc.resolve_version(db, app.category_id, app.academic_year, date.today(), settings)
         differs = res.version is None or res.version.id != app.rule_version_id
+    job_by_doc = ep._jobs_by_doc(db, [d.id for d in app.documents])
     docs = [
         DocumentOut(
             id=d.id, item_key=d.item_key, original_filename=d.original_filename, media_type=d.media_type, size_bytes=d.size_bytes,
             sha256=d.sha256, uploaded_at=d.uploaded_at, uploaded_by=_name(d.uploaded_by), removed=d.removed_at is not None,
-            verification_status=d.verification_status,
+            version_number=d.version_number, is_current=d.removed_at is None and d.superseded_at is None,
+            verification_status=d.verification_status, state=ep.state_out(d, job_by_doc.get(d.id)),
         )
         for d in app.documents
     ]

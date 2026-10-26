@@ -122,12 +122,12 @@ def test_replacing_a_draft_file_keeps_one_active_file_and_the_record_of_the_old_
     first = world.a.upload(f"{world.url}/documents", "doc-main", "v1.pdf", PDF).json()
     second = world.a.upload(f"{world.url}/documents", "doc-main", "v2.pdf", PDF + b"extra").json()
     docs = second["documents"]
-    assert [d["original_filename"] for d in docs if not d["removed"]] == ["v2.pdf"]
-    assert [d["original_filename"] for d in docs if d["removed"]] == ["v1.pdf"]
+    assert [d["original_filename"] for d in docs if d["is_current"]] == ["v2.pdf"]
+    assert [(d["original_filename"], d["version_number"]) for d in docs if not d["is_current"]] == [("v1.pdf", 1)]  # superseded, kept
     assert first["documents"][0]["id"] != second["documents"][-1]["id"]
     assert len(stored_files()) == 2  # the earlier file is kept, not overwritten
     removed = world.a.delete(f"{world.url}/documents/{second['documents'][-1]['id']}").json()
-    assert removed["checklist_items"][3]["status"] == "missing" and all(d["removed"] for d in removed["documents"])
+    assert removed["checklist_items"][3]["status"] == "missing" and not any(d["is_current"] for d in removed["documents"])
 
 
 def test_only_one_active_file_per_slot_is_enforced_by_the_database(world):
@@ -149,12 +149,12 @@ def test_upload_is_never_recorded_as_verified_even_at_the_database(world):
 
 
 def test_failure_after_the_file_is_written_cleans_up_the_file(world, monkeypatch):
-    from app.services import applications as svc
+    from app import jobs
 
     def boom(*a, **k):
         raise RuntimeError("database went away")
 
-    monkeypatch.setattr(svc, "_event", boom)
+    monkeypatch.setattr(jobs, "add_event", boom)
     with pytest.raises(RuntimeError):
         world.a.upload(f"{world.url}/documents", "doc-main", "x.pdf", PDF)
     assert stored_files() == []

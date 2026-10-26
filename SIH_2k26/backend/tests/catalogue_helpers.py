@@ -27,14 +27,26 @@ class Cat:
     approver: str
 
 
+# What the processing layer should look for. Data, exactly as a rule version would carry it.
+MAIN_FIELDS = [
+    {"field_key": "institution_name", "label": "Institution name", "kind": "text", "anchors": ["Name of the Institution"], "compare_group": "inst", "compare_to_application": "institution_name"},
+    {"field_key": "document_date", "label": "Document date", "kind": "date", "anchors": ["Date"]},
+    {"field_key": "reference_number", "label": "Reference number", "kind": "identifier", "anchors": ["Reference No"], "required": False},
+]
+EXTRA_FIELDS = [
+    {"field_key": "institution_name", "label": "Institution name", "kind": "text", "anchors": ["Institute Name", "Name of the Institution"], "compare_group": "inst", "required": False},
+]
+MAIN_TEXT = ["Name of the Institution: Test Institute", "Date: 12/03/2024", "Reference No: RF-2024-9"]
+
+
 def checklist(source_id: uuid.UUID | None = None) -> list[ChecklistItemIn]:
     mk = lambda **kw: ChecklistItemIn(source_id=source_id, **kw)  # noqa: E731
     return [
         mk(item_key="contact", label="Contact person", explanation="Who we contact.", item_type="form_field", field_kind="text", validation={"max_length": 50}, display_order=0),
         mk(item_key="kind", label="Kind of change", explanation="Choose one.", item_type="form_field", field_kind="select", options=["A", "B"], display_order=1),
         mk(item_key="b-detail", label="Detail for B", explanation="Only for B.", item_type="form_field", field_kind="text", applies_when={"item_key": "kind", "equals": "B"}, display_order=2),
-        mk(item_key="doc-main", label="Main document", explanation="Required file.", item_type="document_upload", display_order=3),
-        mk(item_key="doc-extra", label="Extra document", explanation="Optional file.", required=False, item_type="document_upload", display_order=4),
+        mk(item_key="doc-main", label="Main document", explanation="Required file.", item_type="document_upload", display_order=3, clause_ref="cl. 9", extraction=MAIN_FIELDS),
+        mk(item_key="doc-extra", label="Extra document", explanation="Optional file.", required=False, item_type="document_upload", display_order=4, extraction=EXTRA_FIELDS),
         mk(item_key="decl", label="Declaration", explanation="Confirm.", item_type="declaration", display_order=5),
     ]
 

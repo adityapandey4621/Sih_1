@@ -10,6 +10,9 @@ os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///
 os.environ["SEED_PASSWORD"] = ""
 os.environ["STORAGE_DIR"] = str(_tmp / "storage")
 os.environ["ALLOW_DEMO_RULES"] = "true"
+os.environ["OCR_ENGINE"] = "none"  # tests that need OCR inject an engine explicitly
+os.environ["SCANNER"] = "none"
+os.environ["REQUIRE_MALWARE_SCAN"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -26,7 +29,12 @@ PASSWORD = "correct horse battery staple"
 
 @pytest.fixture(autouse=True)
 def _fresh_db():
-    Base.metadata.drop_all(engine)
+    if engine.dialect.name == "postgresql":  # reset the schema outright: robust against leftovers from older runs
+        with engine.begin() as conn:
+            conn.exec_driver_sql("DROP SCHEMA public CASCADE")
+            conn.exec_driver_sql("CREATE SCHEMA public")
+    else:
+        Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     shutil.rmtree(os.environ["STORAGE_DIR"], ignore_errors=True)  # attachments are per-test too
     yield

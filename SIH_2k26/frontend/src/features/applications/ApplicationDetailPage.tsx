@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Alert } from '../../components/ui/feedback'
 import { DemoBanner, VerificationNote } from '../../components/ui/Banners'
+import { usePolling } from '../../lib/usePolling'
 import { useResource } from '../../lib/useResource'
+import { EvidencePanel } from '../evidence/EvidencePanel'
 import { ResourceView } from '../admin/shared'
 import { PageHeader } from '../shell/PageHeader'
 import { applicationsApi } from './applicationsApi'
@@ -13,7 +15,7 @@ import { DataSummary, SummaryPanel } from './summary'
 import type { ApplicationDetail } from './types'
 import './applications.css'
 
-function SubmittedView({ detail, justSubmitted }: { detail: ApplicationDetail; justSubmitted: boolean }) {
+function SubmittedView({ detail, justSubmitted, refreshKey, onProcessingChanged }: { detail: ApplicationDetail; justSubmitted: boolean; refreshKey: number; onProcessingChanged: () => void }) {
   const docItems = detail.checklist_items.filter((i) => i.item_type === 'document_upload' && i.applicable)
   return (
     <div className="editor">
@@ -39,11 +41,12 @@ function SubmittedView({ detail, justSubmitted }: { detail: ApplicationDetail; j
         ) : (
           <div className="slots">
             {docItems.map((i) => (
-              <DocumentSlot key={i.item_key} applicationId={detail.id} item={i} documents={detail.documents} editable={false} onUpdated={() => undefined} />
+              <DocumentSlot key={i.item_key} applicationId={detail.id} item={i} documents={detail.documents} editable={false} onUpdated={() => undefined} onProcessingChanged={onProcessingChanged} />
             ))}
           </div>
         )}
       </Section>
+      <EvidencePanel applicationId={detail.id} refreshKey={refreshKey} />
       <Section title="Configuration this application was submitted under" aside={<VerificationNote verification={detail.rule_version.verification} />}>
         <dl className="facts">
           <div>
@@ -76,6 +79,24 @@ function SubmittedView({ detail, justSubmitted }: { detail: ApplicationDetail; j
 function View({ initial, onReload }: { initial: ApplicationDetail; onReload: () => void }) {
   const [detail, setDetail] = useState(initial)
   const [justSubmitted, setJustSubmitted] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const bump = useCallback(() => setRefreshKey((k) => k + 1), [])
+
+  // While any current file is still being processed, keep its state fresh. Row version guards against clobbering a newer save.
+  const pending = detail.documents.some((d) => d.is_current && d.state && !d.state.terminal)
+  usePolling(async () => {
+    try {
+      const next = await applicationsApi.get(detail.id)
+      const sig = (d: ApplicationDetail) => d.documents.map((x) => `${x.id}:${x.state?.code}`).join('|')
+      setDetail((cur) => {
+        if (next.row_version < cur.row_version) return cur
+        if (sig(next) !== sig(cur)) bump() // the processing panel refetches immediately instead of waiting for its own timer
+        return next
+      })
+    } catch {
+      /* a failed refresh is retried on the next tick */
+    }
+  }, pending)
   return (
     <>
       <PageHeader
@@ -84,9 +105,9 @@ function View({ initial, onReload }: { initial: ApplicationDetail; onReload: () 
         crumbs={[{ label: 'Workspace', to: '/app' }, { label: 'Applications', to: '/app/applications' }, { label: detail.reference }]}
       />
       {detail.status === 'DRAFT' ? (
-        <DraftEditor detail={detail} onUpdated={setDetail} onSubmitted={(d) => { setDetail(d); setJustSubmitted(true); window.scrollTo(0, 0) }} onReload={onReload} />
+        <DraftEditor detail={detail} refreshKey={refreshKey} onProcessingChanged={bump} onUpdated={setDetail} onSubmitted={(d) => { setDetail(d); setJustSubmitted(true); window.scrollTo(0, 0) }} onReload={onReload} />
       ) : (
-        <SubmittedView detail={detail} justSubmitted={justSubmitted} />
+        <SubmittedView detail={detail} justSubmitted={justSubmitted} refreshKey={refreshKey} onProcessingChanged={bump} />
       )}
       {detail.status === 'DRAFT' && (
         <details className="panel panel--collapsible">

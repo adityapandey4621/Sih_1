@@ -79,7 +79,13 @@ export const DASHBOARDS: DashboardSpec[] = [
     description: 'Applications assigned to you for review, with their open issues and deadlines.',
     icon: ClipboardCheck,
     sections: [
-      { title: 'Assigned applications', description: 'Applications allocated to you.', ...none('assigned applications') },
+      {
+        title: 'Submitted applications',
+        description: 'Submitted applications and what automated reading found in their documents. Read-only for now; assignment and scrutiny actions come later.',
+        emptyTitle: 'Open the evidence review',
+        emptyBody: 'Phase 3 shows the documents of each submitted application, the values read from them, and preliminary issues awaiting your review. Nothing here is a deficiency notice.',
+        link: { label: 'Open evidence review', to: '/app/review', permission: 'evidence:read' },
+      },
       { title: 'Pending scrutiny', description: 'Applications awaiting your first review.', ...none('pending scrutiny') },
       { title: 'Re-scrutiny queue', description: 'Applications returned after institutional corrections.', ...none('re-scrutiny cases') },
       { title: 'Review-ready cases', description: 'Cases whose scrutiny is complete and ready to move on.', ...none('review-ready cases') },

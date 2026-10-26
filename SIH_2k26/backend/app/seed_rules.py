@@ -90,6 +90,16 @@ def _stage_models(keys: list[str], source_id, clause: str) -> list[RouteStageIn]
     return out
 
 
+DEMO_FIELDS_A = [
+    {"field_key": "institution_name", "label": "Institution name", "kind": "text", "anchors": ["Name of the Institution", "Institution Name"], "compare_group": "institution_name", "compare_to_application": "institution_name"},
+    {"field_key": "document_date", "label": "Document date", "kind": "date", "anchors": ["Date of Issue", "Date"], "required": False},
+    {"field_key": "reference_number", "label": "Reference number", "kind": "identifier", "anchors": ["Reference No", "Ref No"], "required": False},
+]
+DEMO_FIELDS_B = [
+    {"field_key": "institution_name", "label": "Institution name", "kind": "text", "anchors": ["Name of the Institution", "Institution Name"], "compare_group": "institution_name", "required": False},
+]
+
+
 def _demo_checklist(demo_src) -> list[ChecklistItemIn]:
     note = " Illustrative item for demonstrating the interface; not a regulatory requirement."
     mk = lambda **kw: ChecklistItemIn(source_id=demo_src, clause_ref="DEMO ONLY", **kw)  # noqa: E731
@@ -98,8 +108,8 @@ def _demo_checklist(demo_src) -> list[ChecklistItemIn]:
         mk(item_key="demo-change-summary", label="[DEMO] Summary of the proposed change", explanation="A long-text form field." + note, required=True, item_type="form_field", field_kind="long_text", validation={"min_length": 10}, display_order=1),
         mk(item_key="demo-change-type", label="[DEMO] Type of change", explanation="A select field whose answer reveals a follow-up item." + note, required=True, item_type="form_field", field_kind="select", options=["Option A", "Option B"], display_order=2),
         mk(item_key="demo-option-b-detail", label="[DEMO] Details for Option B", explanation="Appears only when 'Option B' is chosen (conditional item)." + note, required=True, item_type="form_field", field_kind="text", applies_when={"item_key": "demo-change-type", "equals": "Option B"}, display_order=3),
-        mk(item_key="demo-document-a", label="[DEMO] Supporting document A", explanation="A required file upload slot (PDF, PNG or JPEG)." + note, required=True, item_type="document_upload", display_order=4),
-        mk(item_key="demo-document-b", label="[DEMO] Supporting document B", explanation="An optional file upload slot." + note, required=False, item_type="document_upload", display_order=5),
+        mk(item_key="demo-document-a", label="[DEMO] Supporting document A", explanation="A required file upload slot (PDF, PNG or JPEG)." + note + " The document is read for an institution name, a date and a reference number (all invented for the demo).", required=True, item_type="document_upload", display_order=4, extraction=DEMO_FIELDS_A),
+        mk(item_key="demo-document-b", label="[DEMO] Supporting document B", explanation="An optional file upload slot." + note, required=False, item_type="document_upload", display_order=5, extraction=DEMO_FIELDS_B),
         mk(item_key="demo-declaration", label="[DEMO] Declaration that the information provided is accurate", explanation="A declaration the applicant confirms." + note, required=True, item_type="declaration", display_order=6),
     ]
 

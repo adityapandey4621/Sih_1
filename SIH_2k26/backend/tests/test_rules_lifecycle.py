@@ -390,3 +390,37 @@ def test_configuration_gap_is_recorded_and_closed_by_publication(people):
     approver.post(f"/api/rules/versions/{c.version_id}/publish", {})
     gaps = approver.get("/api/rules/gaps").json()
     assert gaps[0]["status"] == "resolved" and "Resolved by publication" in gaps[0]["resolution_note"]
+
+
+# ---- Phase 3: extraction configuration is rule data ---------------------------------------------------------------
+
+
+def test_extraction_configuration_is_validated_frozen_in_the_snapshot_and_cloned(people):
+    author, approver = people
+    c = build_published(set_key="s1")
+    v = author.get(f"/api/rules/versions/{c.version_id}").json()
+    main = next(i for i in v["checklist"] if i["item_key"] == "doc-main")
+    assert [f["field_key"] for f in main["extraction"]] == ["institution_name", "document_date", "reference_number"]
+    with SessionLocal() as db:
+        snap = db.get(RuleVersion, c.version_id).snapshot
+    assert [f["compare_to_application"] for f in next(i for i in snap["checklist"] if i["item_key"] == "doc-main")["extraction"]][:1] == ["institution_name"]
+    assert next(i for i in snap["checklist"] if i["item_key"] == "contact")["extraction"] == []  # not a document item
+    v2 = author.post(f"/api/rules/sets/{c.rule_set_id}/versions").json()
+    assert next(i for i in v2["checklist"] if i["item_key"] == "doc-main")["extraction"] == main["extraction"]  # starting point is cloned
+
+
+def test_extraction_configuration_rejects_nonsense(people):
+    author, _ = people
+    v = new_set(author, make_category())
+
+    def put(items):
+        return author.put(f"/api/rules/versions/{v['id']}", content_payload(v, checklist=items))
+
+    doc = {"item_key": "d", "label": "D", "explanation": "x", "item_type": "document_upload"}
+    ok = {"field_key": "name", "label": "Name", "kind": "text", "anchors": ["Name of the Institution"]}
+    assert put([{**doc, "extraction": [ok]}]).status_code == 200
+    assert put([{"item_key": "t", "label": "T", "explanation": "x", "item_type": "form_field", "field_kind": "text", "extraction": [ok]}]).status_code == 422  # only documents are read
+    assert put([{**doc, "extraction": [ok, ok]}]).status_code == 422  # duplicate keys
+    assert put([{**doc, "extraction": [{**ok, "anchors": []}]}]).status_code == 422  # nothing to look for
+    assert put([{**doc, "extraction": [{**ok, "kind": "regex"}]}]).status_code == 422  # closed vocabulary: no free-form patterns
+    assert put([{**doc, "extraction": [{**ok, "compare_to_application": "anything_else"}]}]).status_code == 422

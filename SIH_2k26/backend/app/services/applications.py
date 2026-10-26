@@ -52,7 +52,7 @@ def get_owned(db: Session, user: User, application_id: uuid.UUID, request: Reque
         select(Application)
         .where(Application.id == application_id)
         .options(
-            selectinload(Application.documents),
+            selectinload(Application.documents).selectinload(ApplicationDocument.processing),
             selectinload(Application.events).selectinload(ApplicationEvent.actor),
             selectinload(Application.category),
             selectinload(Application.institution),
@@ -85,7 +85,7 @@ def config_of(app: Application) -> dict:
 
 
 def active_documents(app: Application) -> dict[str, ApplicationDocument]:
-    return {d.item_key: d for d in app.documents if d.removed_at is None}
+    return {d.item_key: d for d in app.documents if d.removed_at is None and d.superseded_at is None}
 
 
 def checklist_states(app: Application) -> list[cl.ItemState]:
@@ -150,7 +150,7 @@ def list_applications(
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     rows = db.scalars(
         base.order_by(Application.created_at.desc()).limit(page_size).offset((page - 1) * page_size).options(
-            selectinload(Application.documents), selectinload(Application.category), selectinload(Application.rule_version)
+            selectinload(Application.documents).selectinload(ApplicationDocument.processing), selectinload(Application.category), selectinload(Application.rule_version)
         )
     ).all()
     return list(rows), total
@@ -218,115 +218,20 @@ def rebind(db: Session, user: User, application_id: uuid.UUID, request: Request 
 
 # ---- documents ---------------------------------------------------------------------------------
 
-_SIGNATURES: list[tuple[bytes, str, tuple[str, ...]]] = [
-    (b"%PDF-", "application/pdf", (".pdf",)),
-    (b"\x89PNG\r\n\x1a\n", "image/png", (".png",)),
-    (b"\xff\xd8\xff", "image/jpeg", (".jpg", ".jpeg")),
-]
 MAX_ACTIVE_DOCUMENTS = 100
-_CHUNK = 1024 * 1024
-
-
-def _sniff(head: bytes) -> tuple[str, tuple[str, ...]] | None:
-    for sig, media, exts in _SIGNATURES:
-        if head.startswith(sig):
-            return media, exts
-    return None
-
-
-def _clean_filename(name: str | None) -> str:
-    base = re.split(r"[\\/]", name or "")[-1]
-    base = re.sub(r"[\x00-\x1f\x7f]", "", base).strip().strip(".")
-    return (base or "file")[:255]
-
-
-def _read_limited(upload: UploadFile, limit: int) -> Iterator[bytes]:
-    total = 0
-    while chunk := upload.file.read(_CHUNK):
-        total += len(chunk)
-        if total > limit:
-            raise ServiceError(413, "file_too_large", f"The file is larger than the {limit // (1024 * 1024)} MB limit.")
-        yield chunk
-
-
-def _reject(db: Session, request: Request | None, user: User, app: Application, reason: str, item_key: str) -> None:
-    audit.record(db, "application.upload_rejected", request=request, actor=user, target_type="application", target_id=app.id, detail={"reason": reason, "item_key": item_key})
-    db.commit()
 
 
 def upload_document(db: Session, user: User, application_id: uuid.UUID, item_key: str, upload: UploadFile, request: Request | None, settings: Settings, storage: LocalStorage) -> Application:
-    app = get_owned(db, user, application_id, request)
-    if app.status != ApplicationStatus.DRAFT:
-        raise conflict("not_draft", "Documents cannot be added or replaced after submission.")
-    item = next((i for i in config_of(app)["checklist"] if i["item_key"] == item_key), None)
-    if item is None or item["item_type"] != ItemType.DOCUMENT_UPLOAD:
-        raise invalid("That checklist item does not take a file upload.")
-    if len(app.documents) >= MAX_ACTIVE_DOCUMENTS * 3:  # includes replaced files, which are kept for the record
-        raise invalid("This application has reached the maximum number of attachments.")
+    from app.services import documents  # local import: documents builds on this module
 
-    filename = _clean_filename(upload.filename)
-    head = upload.file.read(16)
-    upload.file.seek(0)
-    kind = _sniff(head)
-    ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if kind is None:
-        _reject(db, request, user, app, "type_not_allowed", item_key)
-        raise ServiceError(415, "type_not_allowed", "Only PDF, PNG and JPEG files are accepted, and the file's content must match its type.")
-    media, exts = kind
-    declared = (upload.content_type or "").split(";")[0].strip().lower()
-    if ext not in exts or (declared and declared not in (media, "application/octet-stream")):
-        _reject(db, request, user, app, "type_mismatch", item_key)
-        raise ServiceError(415, "type_mismatch", "The file's name, declared type and content do not agree. Please upload the original PDF, PNG or JPEG file.")
-
-    key = storage.new_key()
-    try:
-        size, digest = storage.save(key, _read_limited(upload, settings.max_upload_bytes))
-    except ServiceError:
-        _reject(db, request, user, app, "too_large", item_key)
-        raise
-    except (StorageError, OSError) as exc:
-        audit.record(db, "application.upload_failed", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": item_key, "error": type(exc).__name__})
-        db.commit()
-        raise ServiceError(503, "storage_unavailable", "The file could not be stored. Nothing was saved; please try again.") from exc
-    if size == 0:
-        storage.delete(key)
-        raise invalid("The file is empty.")
-
-    try:
-        now = utcnow()
-        for old in [d for d in app.documents if d.item_key == item_key and d.removed_at is None]:
-            old.removed_at, old.removed_by_id = now, user.id
-        db.flush()  # free the one-active-file-per-item slot before inserting the replacement
-        doc = ApplicationDocument(
-            application_id=app.id, item_key=item_key, original_filename=filename, storage_key=key, media_type=media,
-            size_bytes=size, sha256=digest, uploaded_by_id=user.id,
-        )
-        db.add(doc)
-        db.flush()
-        _event(db, app, user, "document_uploaded", {"item_key": item_key, "document_id": str(doc.id), "sha256": digest, "size": size})
-        audit.record(db, "application.document_uploaded", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": item_key, "document_id": str(doc.id), "size": size})
-        db.commit()
-    except BaseException:
-        db.rollback()
-        storage.delete(key)  # no orphaned file when the record could not be saved
-        raise
-    db.expire_all()
-    return get_owned(db, user, application_id, request)
+    return documents.upload_version(db, user, application_id, item_key, upload, request, settings, storage)[0]
 
 
-def remove_document(db: Session, user: User, application_id: uuid.UUID, document_id: uuid.UUID, request: Request | None) -> Application:
-    app = get_owned(db, user, application_id, request)
-    if app.status != ApplicationStatus.DRAFT:
-        raise conflict("not_draft", "Documents cannot be removed after submission.")
-    doc = next((d for d in app.documents if d.id == document_id and d.removed_at is None), None)
-    if doc is None:
-        raise not_found("Document")
-    doc.removed_at, doc.removed_by_id = utcnow(), user.id  # soft removal: the record of what was uploaded is kept
-    _event(db, app, user, "document_removed", {"item_key": doc.item_key, "document_id": str(doc.id)})
-    audit.record(db, "application.document_removed", request=request, actor=user, target_type="application", target_id=app.id, detail={"item_key": doc.item_key, "document_id": str(doc.id)})
-    db.flush()
-    return get_owned(db, user, application_id, request)
+def remove_document(db: Session, user: User, application_id: uuid.UUID, document_id: uuid.UUID, request: Request | None, settings: Settings | None = None) -> Application:
+    from app.config import get_settings
+    from app.services import documents
 
+    return documents.remove_current(db, user, application_id, document_id, request, settings or get_settings())
 
 def document_for_download(db: Session, user: User, application_id: uuid.UUID, document_id: uuid.UUID, request: Request | None) -> ApplicationDocument:
     app = get_owned(db, user, application_id, request)
@@ -376,8 +281,8 @@ def submit(db: Session, user: User, application_id: uuid.UUID, row_version: int,
         "form_data": dict(app.form_data or {}),
         "checklist": [s.as_dict() for s in states],
         "documents": [
-            {"id": str(d.id), "item_key": d.item_key, "filename": d.original_filename, "media_type": d.media_type, "size_bytes": d.size_bytes, "sha256": d.sha256, "uploaded_at": d.uploaded_at.isoformat()}
-            for d in app.documents if d.removed_at is None
+            {"id": str(d.id), "item_key": d.item_key, "version": d.version_number, "filename": d.original_filename, "media_type": d.media_type, "size_bytes": d.size_bytes, "sha256": d.sha256, "uploaded_at": d.uploaded_at.isoformat()}
+            for d in app.documents if d.removed_at is None and d.superseded_at is None
         ],
     }
     result = db.execute(

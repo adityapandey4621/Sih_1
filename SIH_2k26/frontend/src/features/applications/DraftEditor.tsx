@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { DemoBanner, VerificationNote } from '../../components/ui/Banners'
 import { Alert } from '../../components/ui/feedback'
+import { EvidencePanel } from '../evidence/EvidencePanel'
 import { applicationsApi } from './applicationsApi'
 import { DocumentSlot } from './DocumentSlot'
 import { FormItem } from './FormFields'
@@ -33,9 +34,11 @@ interface Props {
   onUpdated: (d: ApplicationDetail) => void
   onSubmitted: (d: ApplicationDetail) => void
   onReload: () => void
+  refreshKey: number
+  onProcessingChanged: () => void
 }
 
-export function DraftEditor({ detail, onUpdated, onSubmitted, onReload }: Props) {
+export function DraftEditor({ detail, onUpdated, onSubmitted, onReload, refreshKey, onProcessingChanged }: Props) {
   const [step, setStep] = useState<Step>('details')
   const [values, setValues] = useState<Record<string, unknown>>(detail.form_data)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -204,11 +207,12 @@ export function DraftEditor({ detail, onUpdated, onSubmitted, onReload }: Props)
             ) : (
               <div className="slots">
                 {docItems.filter(visible).map((i) => (
-                  <DocumentSlot key={i.item_key} applicationId={detail.id} item={i} documents={detail.documents} editable onUpdated={onUpdated} />
+                  <DocumentSlot key={i.item_key} applicationId={detail.id} item={i} documents={detail.documents} editable onUpdated={onUpdated} onProcessingChanged={onProcessingChanged} />
                 ))}
               </div>
             )}
           </Section>
+          <EvidencePanel applicationId={detail.id} refreshKey={refreshKey} />
           <div className="sticky-actions">
             <Button variant="secondary" onClick={() => setStep('details')}>
               Back

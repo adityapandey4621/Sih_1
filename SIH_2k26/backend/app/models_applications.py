@@ -2,8 +2,9 @@
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import JSON, BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, Uuid, text
+from sqlalchemy import JSON, BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -53,15 +54,16 @@ class ApplicationDocument(Base):
     __table_args__ = (
         # Uploading is not verification. Later phases add values; Phase 2 allows exactly one.
         CheckConstraint("verification_status = 'NOT_VERIFIED'", name="ck_document_not_verified_in_phase2"),
-        # One active file per checklist slot; replaced files are kept (soft-removed) for the record.
+        # One current version per checklist slot; replaced versions are kept (superseded), removed drafts are soft-removed.
         Index(
             "uq_active_document_per_item",
             "application_id",
             "item_key",
             unique=True,
-            postgresql_where=text("removed_at IS NULL"),
-            sqlite_where=text("removed_at IS NULL"),
+            postgresql_where=text("removed_at IS NULL AND superseded_at IS NULL"),
+            sqlite_where=text("removed_at IS NULL AND superseded_at IS NULL"),
         ),
+        UniqueConstraint("slot_id", "version_number", name="uq_document_version_number"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=new_id)
@@ -78,8 +80,15 @@ class ApplicationDocument(Base):
     removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     removed_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
 
+    # Phase 3 versioning: every upload is a new immutable version of the slot's logical document.
+    slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_slots.id", use_alter=True, name="fk_document_slot"), index=True)
+    version_number: Mapped[int] = mapped_column(Integer, default=1)
+    previous_version_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("application_documents.id", use_alter=True, name="fk_document_previous"))
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # set when a newer version replaces this one
+
     application: Mapped[Application] = relationship(back_populates="documents")
     uploaded_by: Mapped[User] = relationship(foreign_keys=[uploaded_by_id])
+    processing: Mapped[Optional["DocumentProcessing"]] = relationship(back_populates="document", uselist=False)  # noqa: UP007
 
 
 class ApplicationEvent(Base):

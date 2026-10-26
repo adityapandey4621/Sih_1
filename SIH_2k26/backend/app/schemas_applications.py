@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.schemas_catalogue import CategoryOut, ChecklistItemOut, RouteStageOut, SourceOut
+from app.schemas_evidence import DocumentStateOut
 
 
 class ApplicationCreateIn(BaseModel):
@@ -31,8 +32,11 @@ class DocumentOut(BaseModel):
     uploaded_at: datetime
     uploaded_by: str | None
     removed: bool
-    # Always NOT_VERIFIED in Phase 2: an upload is a technical fact, not a regulatory finding.
+    version_number: int = 1
+    is_current: bool = True  # false: an earlier version, kept for the record
+    # Always NOT_VERIFIED: an upload is a technical fact, not a regulatory finding.
     verification_status: str
+    state: DocumentStateOut | None = None  # technical processing state in words; never `verified`
 
 
 class ChecklistStateOut(BaseModel):

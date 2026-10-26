@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 
 from sqlalchemy import select
 
@@ -77,7 +77,7 @@ def test_full_flow_request_approve_accept_login(api, make):
     me = applicant.login("applicant@college.example.org", "a-very-long-passphrase").json()
     assert me["role"] == "institute_user"
     assert me["institution"]["name"] == "Example College of Engineering"
-    assert me["permissions"] == ["application:create", "application:read_own", "application:submit", "application:update_own", "dashboard:institute"]
+    assert me["permissions"] == ["application:create", "application:read_own", "application:submit", "application:update_own", "dashboard:institute", "document:retry"]
 
     # single use
     assert applicant.post("/api/auth/invitations/accept", {"token": token, "password": "another-long-passphrase"}).status_code == 404

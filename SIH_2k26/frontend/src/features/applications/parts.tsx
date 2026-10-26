@@ -45,6 +45,7 @@ export function ChecklistPanel({ items, showStatus = true }: { items: (Checklist
                 </span>
               </div>
               {i.explanation && <p className="checklist__explain">{i.explanation}</p>}
+              {(i as ChecklistItem).extraction?.length ? <p className="checklist__meta">Document is read for: {(i as ChecklistItem).extraction!.map((x) => x.label).join(', ')}</p> : null}
               <p className="checklist__meta mono">
                 {humanise(i.item_type)}
                 {i.clause_ref ? ` · ${i.clause_ref}` : ''}

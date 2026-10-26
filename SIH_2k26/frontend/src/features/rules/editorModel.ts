@@ -1,9 +1,21 @@
-import type { ChecklistItem, RouteStage } from '../applications/types'
+import type { ChecklistItem, ExtractionSpec, RouteStage } from '../applications/types'
 import type { DeadlinePolicy, VersionContentInput, VersionDetail } from './types'
 
 /** Editable form state. Everything is a string/boolean so inputs stay controlled; conversion happens at the edges. */
+export interface ExtractionDraft {
+  uid: string
+  field_key: string
+  label: string
+  kind: ExtractionSpec['kind']
+  anchorsText: string // one label per line
+  required: boolean
+  compare_group: string
+  compare_to_application: boolean
+}
+
 export interface ItemDraft {
   uid: string
+  extraction: ExtractionDraft[]
   item_key: string
   label: string
   explanation: string
@@ -64,9 +76,10 @@ export const uid = () => `u${++n}`
 const s = (v: unknown) => (v === null || v === undefined ? '' : String(v))
 
 export const blankItem = (): ItemDraft => ({
-  uid: uid(), item_key: '', label: '', explanation: '', required: true, item_type: 'form_field', field_kind: 'text',
+  uid: uid(), extraction: [], item_key: '', label: '', explanation: '', required: true, item_type: 'form_field', field_kind: 'text',
   optionsText: '', min_length: '', max_length: '', min: '', max: '', when_item: '', when_value: '', source_id: '', clause_ref: '',
 })
+export const blankExtraction = (): ExtractionDraft => ({ uid: uid(), field_key: '', label: '', kind: 'text', anchorsText: '', required: true, compare_group: '', compare_to_application: false })
 export const blankStage = (): StageDraft => ({ uid: uid(), stage_key: '', label: '', description: '', is_conditional: false, condition_description: '', next: [], source_id: '', clause_ref: '' })
 export const blankPolicy = (): PolicyDraft => ({
   uid: uid(), policy_key: '', label: '', deadline_type: 'INTERNAL_SLA', trigger_event: '', duration_value: '', duration_unit: '', calendar_convention: '', pause_resume_note: '', source_id: '', clause_ref: '',
@@ -80,6 +93,7 @@ export function fromVersion(v: VersionDetail): EditorState {
     change_summary: v.change_summary,
     source_ids: v.sources.map((x) => x.id),
     items: v.checklist.map((i) => ({
+      extraction: (i.extraction ?? []).map((x) => ({ uid: uid(), field_key: x.field_key, label: x.label, kind: x.kind, anchorsText: x.anchors.join('\n'), required: x.required, compare_group: x.compare_group ?? '', compare_to_application: x.compare_to_application === 'institution_name' })),
       uid: uid(), item_key: i.item_key, label: i.label, explanation: i.explanation, required: i.required, item_type: i.item_type,
       field_kind: i.field_kind ?? 'text', optionsText: (i.options ?? []).join('\n'),
       min_length: s(i.validation?.min_length), max_length: s(i.validation?.max_length), min: s(i.validation?.min), max: s(i.validation?.max),
@@ -120,6 +134,12 @@ export function toPayload(e: EditorState, rowVersion: number): VersionContentInp
       validation: isField && Object.keys(validation).length ? validation : null,
       applies_when: i.when_item ? { item_key: i.when_item, equals: whenValue } : null,
       source_id: orNull(i.source_id), clause_ref: orNull(i.clause_ref), display_order: idx,
+      extraction: i.item_type === 'document_upload' && i.extraction.length
+        ? i.extraction.map((x) => ({
+            field_key: x.field_key.trim(), label: x.label.trim(), kind: x.kind, anchors: x.anchorsText.split('\n').map((a) => a.trim()).filter(Boolean),
+            required: x.required, compare_group: orNull(x.compare_group), compare_to_application: x.compare_to_application ? ('institution_name' as const) : null,
+          }))
+        : null,
     }
   })
   const route = e.stages.map((st, idx): RouteStage => ({

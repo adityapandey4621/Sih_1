@@ -12,7 +12,7 @@ import { useAuth } from '../auth/AuthContext'
 import { Section, SOURCE_BADGE } from '../applications/parts'
 import { PageHeader } from '../shell/PageHeader'
 import '../applications/applications.css'
-import { blankItem, blankPolicy, blankStage, fromVersion, isAcademicYear, toPayload, type EditorState, type ItemDraft, type PolicyDraft, type StageDraft } from './editorModel'
+import { blankExtraction, blankItem, blankPolicy, blankStage, fromVersion, isAcademicYear, toPayload, type EditorState, type ExtractionDraft, type ItemDraft, type PolicyDraft, type StageDraft } from './editorModel'
 import { ReadinessPanel } from './parts'
 import { rulesApi } from './rulesApi'
 import type { VersionDetail } from './types'
@@ -31,6 +31,7 @@ function SourcePick({ value, onChange, sources, label = 'Source' }: { value: str
 function ItemCard({ i, set, sources, others }: { i: ItemDraft; set: SetState<EditorState>; sources: Source[]; others: ItemDraft[] }) {
   const up = (p: Partial<ItemDraft>) => patchAt<ItemDraft>(set, 'items', i.uid, p)
   const isField = i.item_type === 'form_field'
+  const upExtraction = (uid: string, p: Partial<ExtractionDraft>) => up({ extraction: i.extraction.map((x) => (x.uid === uid ? { ...x, ...p } : x)) })
   return (
     <div className="row-card">
       <div className="row-card__head">
@@ -64,7 +65,35 @@ function ItemCard({ i, set, sources, others }: { i: ItemDraft; set: SetState<Edi
           )}
         </div>
       )}
-      <div className="row-card__grid">
+      {i.item_type === 'document_upload' && (
+        <fieldset className="field extraction-config">
+          <legend className="field__label">Values to look for in this document</legend>
+          <p className="field__hint">Each is found by the label that precedes it on the page. Nothing is looked for unless listed here, and a value that cannot be found is reported as “unable to extract”, never guessed.</p>
+          {i.extraction.map((x) => (
+            <div className="row-card" key={x.uid}>
+              <div className="row-card__grid">
+                <TextField label="Value key" value={x.field_key} onChange={(e) => upExtraction(x.uid, { field_key: e.target.value })} />
+                <TextField label="Label" value={x.label} onChange={(e) => upExtraction(x.uid, { label: e.target.value })} />
+                <SelectField label="Kind" value={x.kind} placeholder="Kind" onChange={(e) => upExtraction(x.uid, { kind: e.target.value as ExtractionDraft['kind'] })} options={[{ value: 'text', label: 'Text' }, { value: 'date', label: 'Date' }, { value: 'identifier', label: 'Identifier / reference' }]} />
+                <TextField label="Compare group" optional value={x.compare_group} onChange={(e) => upExtraction(x.uid, { compare_group: e.target.value })} hint="Values in the same group are compared across documents." />
+              </div>
+              <TextAreaField label="Labels that precede the value (one per line)" value={x.anchorsText} onChange={(e) => upExtraction(x.uid, { anchorsText: e.target.value })} />
+              <CheckboxField label="Expected: report a preliminary issue if it is not found" checked={x.required} onChange={(e) => upExtraction(x.uid, { required: e.target.checked })} />
+              <CheckboxField label="Compare with the institution name on the application record" checked={x.compare_to_application} onChange={(e) => upExtraction(x.uid, { compare_to_application: e.target.checked })} />
+              <div className="inline-actions">
+                <Button size="sm" variant="quiet" onClick={() => up({ extraction: i.extraction.filter((y) => y.uid !== x.uid) })} aria-label={`Remove value ${x.label || x.field_key}`}>
+                  <Trash2 size={16} aria-hidden="true" /> Remove value
+                </Button>
+              </div>
+            </div>
+          ))}
+          <div className="inline-actions">
+            <Button size="sm" variant="secondary" onClick={() => up({ extraction: [...i.extraction, blankExtraction()] })}>
+              <Plus size={16} aria-hidden="true" /> Add value to look for
+            </Button>
+          </div>
+        </fieldset>
+      )}      <div className="row-card__grid">
         <SelectField label="Applies only when…" optional placeholder="Always applies" value={i.when_item} onChange={(e) => up({ when_item: e.target.value })} options={others.filter((o) => o.item_type === 'form_field' && o.item_key && o.uid !== i.uid).map((o) => ({ value: o.item_key, label: o.label || o.item_key }))} />
         {i.when_item && <TextField label="…equals" value={i.when_value} onChange={(e) => up({ when_value: e.target.value })} hint="The exact answer that makes this item apply." />}
         <SourcePick value={i.source_id} onChange={(v) => up({ source_id: v })} sources={sources} />
