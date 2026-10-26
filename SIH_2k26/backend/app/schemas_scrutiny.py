@@ -366,7 +366,9 @@ class HandoffOut(BaseModel):
     determined_at: datetime | None
     determination_reason: str | None
     created_at: datetime
-    module_available: bool  # whether the next stage's workflow exists in this release (it does not, in Phase 4)
+    module_available: bool  # whether the next stage's workflow exists in this release and has been activated (EVC / SHC: Phase 5)
+    activated_stage: str | None = None  # "EVC" | "SHC" once a committee case exists for the stage
+    activated_case_id: uuid.UUID | None = None
 
 
 class CaseDetailOut(BaseModel):

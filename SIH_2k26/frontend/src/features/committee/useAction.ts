@@ -1,0 +1,36 @@
+import { useCallback, useState } from 'react'
+import { ApiError } from '../../lib/api'
+
+/**
+ * Runs one workflow action. On success the server's refreshed value replaces the screen's copy; on failure the server's own message is kept
+ * (never replaced by a vaguer one). A stale-version answer reloads the case so the person sees what changed.
+ */
+export function useAction<T>(onResult: (d: T) => void, onStale: () => void) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<ApiError | null>(null)
+  const run = useCallback(
+    async (fn: () => Promise<T>): Promise<boolean> => {
+      setBusy(true)
+      try {
+        onResult(await fn())
+        setError(null)
+        return true
+      } catch (e) {
+        const err = e instanceof ApiError ? e : new ApiError(0, 'Something unexpected went wrong. Nothing was changed.')
+        setError(err)
+        if (err.code === 'stale_version' || err.code === 'invalid_transition') onStale()
+        return false
+      } finally {
+        setBusy(false)
+      }
+    },
+    [onResult, onStale],
+  )
+  return { busy, error, run, clear: useCallback(() => setError(null), []) }
+}
+
+export const issuesByPath = (error: ApiError | null): Record<string, string> => {
+  const out: Record<string, string> = {}
+  for (const i of error?.issues ?? []) if (i.path) out[i.path] ??= i.message
+  return out
+}

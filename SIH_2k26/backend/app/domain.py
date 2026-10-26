@@ -296,7 +296,7 @@ class AssignmentSource(StrEnum):
 
 
 class HandoffStatus(StrEnum):
-    QUEUED = "QUEUED"  # the next configured stage is known; its module is not part of this phase
+    QUEUED = "QUEUED"  # the next configured stage is known (an EVC / SHC stage is then activated by services/stages.py)
     AWAITING_DETERMINATION = "AWAITING_DETERMINATION"  # the route has a conditional / multiple next stage; a person must determine
     NO_FURTHER_STAGE = "NO_FURTHER_STAGE"  # the frozen route configures nothing after scrutiny
     EXCEPTION = "EXCEPTION"  # route missing or unusable
@@ -321,3 +321,187 @@ class NotificationEvent(StrEnum):
     READY_FOR_RESCRUTINY = "READY_FOR_RESCRUTINY"
     SCRUTINY_COMPLETED = "SCRUTINY_COMPLETED"
     HANDED_OFF = "HANDED_OFF"
+
+
+# ---- committee stages: EVC and SHC (Phase 5) ------------------------------------------------------------
+# The route engine (services/stages.py) decides from the application's FROZEN route which stage comes next. The two
+# committee processes are separate on purpose:
+#   EVC  an expert visit and its report. A report is NOT an approval.
+#   SHC  a compliance / hearing process with a recommendation. A recommendation is NOT a decision.
+# Both end in a hand-off to the later decision process (Executive Committee, a later phase). Nothing here decides.
+
+STAGE_KEY_EVC = "evc"
+STAGE_KEY_SHC = "shc"
+# Table 2.3 has one combined "SAC / SHC (AA)" column. SHC (compliance before the Executive Committee decides, cl. 2.23.3) and SAC
+# (an appeal AFTER the decision, cl. 2.24) are distinct. When the combined stage applies before a decision, only SHC is built here.
+STAGE_KEYS_COMBINED_SHC = frozenset({"sac-shc-aa"})
+
+
+class CommitteeStage(StrEnum):
+    EVC = "EVC"
+    SHC = "SHC"
+
+
+def committee_stage_for(stage_key: str | None) -> "CommitteeStage | None":
+    if stage_key == STAGE_KEY_EVC:
+        return CommitteeStage.EVC
+    if stage_key == STAGE_KEY_SHC or stage_key in STAGE_KEYS_COMBINED_SHC:
+        return CommitteeStage.SHC
+    return None
+
+
+class CState(StrEnum):
+    # EVC
+    SELECTION_PENDING = "SELECTION_PENDING"  # activated; no authorised selection result yet
+    SELECTION_REQUESTED = "SELECTION_REQUESTED"  # a request is with the selection provider
+    SCHEDULE_PENDING = "SCHEDULE_PENDING"  # members known; no confirmed visit schedule
+    SCHEDULED = "SCHEDULED"
+    VISIT_IN_PROGRESS = "VISIT_IN_PROGRESS"
+    REPORT_SUBMITTED = "REPORT_SUBMITTED"
+    # SHC
+    PREPARATION = "PREPARATION"  # the coordinator prepares what the institution is asked to address
+    AWAITING_COMPLIANCE = "AWAITING_COMPLIANCE"
+    COMPLIANCE_RECEIVED = "COMPLIANCE_RECEIVED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    RECOMMENDATION_SUBMITTED = "RECOMMENDATION_SUBMITTED"
+    # both
+    COMPLETED = "COMPLETED"  # the stage is complete; NOT an approval
+
+
+class CAction(StrEnum):
+    REQUEST_SELECTION = "request_selection"
+    SELECTION_FAILED = "selection_failed"
+    RECORD_SELECTION = "record_selection"
+    RESELECT = "reselect"
+    CONFIRM_SCHEDULE = "confirm_schedule"
+    UNSCHEDULE = "unschedule"  # a confirmed schedule was cancelled or replaced
+    START_VISIT = "start_visit"
+    SUBMIT_REPORT = "submit_report"
+    REQUEST_COMPLIANCE = "request_compliance"
+    RECEIVE_COMPLIANCE = "receive_compliance"
+    START_REVIEW = "start_review"
+    SUBMIT_RECOMMENDATION = "submit_recommendation"
+    OPEN_AMENDMENT = "open_amendment"
+    COMPLETE = "complete"
+
+
+_C, _A = CState, CAction
+COMMITTEE_TRANSITIONS: dict[tuple[CommitteeStage, CState, CAction], CState] = {
+    # EVC
+    (CommitteeStage.EVC, _C.SELECTION_PENDING, _A.REQUEST_SELECTION): _C.SELECTION_REQUESTED,
+    (CommitteeStage.EVC, _C.SELECTION_PENDING, _A.RECORD_SELECTION): _C.SCHEDULE_PENDING,
+    (CommitteeStage.EVC, _C.SELECTION_REQUESTED, _A.RECORD_SELECTION): _C.SCHEDULE_PENDING,
+    (CommitteeStage.EVC, _C.SELECTION_REQUESTED, _A.SELECTION_FAILED): _C.SELECTION_PENDING,
+    (CommitteeStage.EVC, _C.SCHEDULE_PENDING, _A.RESELECT): _C.SELECTION_PENDING,
+    (CommitteeStage.EVC, _C.SCHEDULED, _A.RESELECT): _C.SELECTION_PENDING,
+    (CommitteeStage.EVC, _C.SCHEDULE_PENDING, _A.CONFIRM_SCHEDULE): _C.SCHEDULED,
+    (CommitteeStage.EVC, _C.SCHEDULED, _A.UNSCHEDULE): _C.SCHEDULE_PENDING,
+    (CommitteeStage.EVC, _C.SCHEDULED, _A.START_VISIT): _C.VISIT_IN_PROGRESS,
+    (CommitteeStage.EVC, _C.VISIT_IN_PROGRESS, _A.SUBMIT_REPORT): _C.REPORT_SUBMITTED,
+    (CommitteeStage.EVC, _C.REPORT_SUBMITTED, _A.OPEN_AMENDMENT): _C.VISIT_IN_PROGRESS,
+    (CommitteeStage.EVC, _C.REPORT_SUBMITTED, _A.COMPLETE): _C.COMPLETED,
+    # SHC
+    (CommitteeStage.SHC, _C.PREPARATION, _A.REQUEST_COMPLIANCE): _C.AWAITING_COMPLIANCE,
+    (CommitteeStage.SHC, _C.PREPARATION, _A.START_REVIEW): _C.UNDER_REVIEW,  # only where the policy does not permit institution compliance
+    (CommitteeStage.SHC, _C.AWAITING_COMPLIANCE, _A.RECEIVE_COMPLIANCE): _C.COMPLIANCE_RECEIVED,
+    (CommitteeStage.SHC, _C.COMPLIANCE_RECEIVED, _A.START_REVIEW): _C.UNDER_REVIEW,
+    (CommitteeStage.SHC, _C.UNDER_REVIEW, _A.REQUEST_COMPLIANCE): _C.AWAITING_COMPLIANCE,  # a further round
+    (CommitteeStage.SHC, _C.UNDER_REVIEW, _A.SUBMIT_RECOMMENDATION): _C.RECOMMENDATION_SUBMITTED,
+    (CommitteeStage.SHC, _C.RECOMMENDATION_SUBMITTED, _A.OPEN_AMENDMENT): _C.UNDER_REVIEW,
+    (CommitteeStage.SHC, _C.RECOMMENDATION_SUBMITTED, _A.COMPLETE): _C.COMPLETED,
+}
+EVC_STATES = (_C.SELECTION_PENDING, _C.SELECTION_REQUESTED, _C.SCHEDULE_PENDING, _C.SCHEDULED, _C.VISIT_IN_PROGRESS, _C.REPORT_SUBMITTED, _C.COMPLETED)
+SHC_STATES = (_C.PREPARATION, _C.AWAITING_COMPLIANCE, _C.COMPLIANCE_RECEIVED, _C.UNDER_REVIEW, _C.RECOMMENDATION_SUBMITTED, _C.COMPLETED)
+INITIAL_STATE = {CommitteeStage.EVC: _C.SELECTION_PENDING, CommitteeStage.SHC: _C.PREPARATION}
+
+
+class SelectionMode(StrEnum):
+    DEMO_MANUAL = "DEMO_MANUAL"  # fictional members recorded by a coordinator; NOT the AICTE selection mechanism
+    EXTERNAL_PORTAL = "EXTERNAL_PORTAL"  # an authorised external selection interface (none is connected)
+
+
+class SelectionStatus(StrEnum):
+    REQUESTED = "REQUESTED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    INCOMPLETE = "INCOMPLETE"  # a result arrived but cannot be used (missing / unverifiable members)
+    CANCELLED = "CANCELLED"
+
+
+class ScheduleKind(StrEnum):
+    VISIT = "VISIT"
+    HEARING = "HEARING"
+
+
+class ScheduleStatus(StrEnum):
+    PROPOSED = "PROPOSED"
+    CONFIRMED = "CONFIRMED"
+    SUPERSEDED = "SUPERSEDED"  # replaced by a later schedule (rescheduled)
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"  # the visit / hearing took place (hearing: recorded by an assigned member)
+
+
+class VisitMode(StrEnum):
+    PHYSICAL = "PHYSICAL"
+    ONLINE = "ONLINE"
+    HYBRID = "HYBRID"
+
+
+class ObservationStatus(StrEnum):
+    OBSERVED = "OBSERVED"  # what was seen is recorded in the note; says nothing about compliance
+    NOT_OBSERVED = "NOT_OBSERVED"
+    EVIDENCE_UNAVAILABLE = "EVIDENCE_UNAVAILABLE"
+    UNCERTAIN = "UNCERTAIN"
+
+
+class ReportKind(StrEnum):
+    EVC_REPORT = "EVC_REPORT"
+    SHC_RECOMMENDATION = "SHC_RECOMMENDATION"
+
+
+class ReportStatus(StrEnum):
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"  # immutable; a correction is a new, authorised version
+
+
+class ComplianceRoundStatus(StrEnum):
+    OPEN = "OPEN"
+    RESPONSE_RECEIVED = "RESPONSE_RECEIVED"
+    CLOSED = "CLOSED"
+
+
+class ShcAssessment(StrEnum):
+    """What the reviewer concludes about the evidence for one requirement. Deliberately not 'accepted' / 'compliant'."""
+
+    EVIDENCE_SUPPORTS = "EVIDENCE_SUPPORTS"
+    EVIDENCE_DOES_NOT_SUPPORT = "EVIDENCE_DOES_NOT_SUPPORT"
+    INCONCLUSIVE = "INCONCLUSIVE"
+
+
+class TransitionStatus(StrEnum):
+    QUEUED = "QUEUED"
+    AWAITING_DETERMINATION = "AWAITING_DETERMINATION"
+    NO_FURTHER_STAGE = "NO_FURTHER_STAGE"
+    EXCEPTION = "EXCEPTION"
+
+
+class CommitteeEvent(StrEnum):
+    STAGE_ACTIVATED = "STAGE_ACTIVATED"
+    SELECTION_REQUESTED = "SELECTION_REQUESTED"
+    SELECTION_RECORDED = "SELECTION_RECORDED"
+    SELECTION_FAILED = "SELECTION_FAILED"
+    SCHEDULE_PROPOSED = "SCHEDULE_PROPOSED"
+    SCHEDULE_CONFIRMED = "SCHEDULE_CONFIRMED"
+    SCHEDULE_CHANGED = "SCHEDULE_CHANGED"
+    VISIT_STARTED = "VISIT_STARTED"
+    REPORT_SUBMITTED = "REPORT_SUBMITTED"
+    STAGE_COMPLETED = "STAGE_COMPLETED"
+    STAGE_BLOCKED = "STAGE_BLOCKED"
+    COMPLIANCE_REQUESTED = "COMPLIANCE_REQUESTED"
+    COMPLIANCE_SUBMITTED = "COMPLIANCE_SUBMITTED"
+    RECOMMENDATION_SUBMITTED = "RECOMMENDATION_SUBMITTED"
+    DECISION_HANDOFF_READY = "DECISION_HANDOFF_READY"
+    NEXT_STAGE_AWAITS_DETERMINATION = "NEXT_STAGE_AWAITS_DETERMINATION"
+
+
+COMMITTEE_DEMO_BANNER = "DEMO ONLY — fictional committee configuration. Not an AICTE checklist, composition or process."

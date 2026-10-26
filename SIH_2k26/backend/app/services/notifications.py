@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.domain import NOTICE_VISIBLE_TO_INSTITUTION, NotificationEvent
 from app.models import User
+from app.models_committee import CommitteeAssignment
 from app.models_scrutiny import DeficiencyNotice, Notification, ScrutinyAssignment
 from app.rbac import Role
 
@@ -42,6 +43,15 @@ def assigned_reviewers(db: Session, case_id: uuid.UUID) -> list[User]:
     )
 
 
+def committee_members(db: Session, committee_case_id: uuid.UUID) -> list[User]:
+    return list(
+        db.scalars(
+            select(User).join(CommitteeAssignment, CommitteeAssignment.user_id == User.id)
+            .where(CommitteeAssignment.case_id == committee_case_id, CommitteeAssignment.revoked_at.is_(None), User.is_active.is_(True)).order_by(User.email)
+        )
+    )
+
+
 def _insert(db: Session, row: Notification) -> None:
     """The single write point (tests replace it to simulate a storage failure)."""
     db.add(row)
@@ -50,7 +60,7 @@ def _insert(db: Session, row: Notification) -> None:
 
 def notify(
     db: Session, event: NotificationEvent, recipients: list[User], *, kind: str, scope_key: str, title: str, body: str, link: str | None,
-    application_id: uuid.UUID | None = None, case_id: uuid.UUID | None = None, notice_id: uuid.UUID | None = None,
+    application_id: uuid.UUID | None = None, case_id: uuid.UUID | None = None, notice_id: uuid.UUID | None = None, committee_case_id: uuid.UUID | None = None,
 ) -> int:
     """Create one notification per recipient. Returns how many were newly created."""
     created = 0
@@ -60,7 +70,7 @@ def notify(
             continue
         row = Notification(
             event_type=event.value, dedupe_key=key, recipient_user_id=user.id, recipient_kind=kind, application_id=application_id, case_id=case_id,
-            notice_id=notice_id, title=title[:200], body=body[:600], link=link,
+            notice_id=notice_id, committee_case_id=committee_case_id, title=title[:200], body=body[:600], link=link,
         )
         try:
             # SAVEPOINT on PostgreSQL (the production database): a failed notification rolls back to here and nothing else.

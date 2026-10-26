@@ -88,13 +88,12 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'evc-coordination',
-    planned: true,
     permission: 'dashboard:evc-coordination',
     navLabel: 'EVC coordination',
     title: 'EVC coordination dashboard',
     description: 'Cases that need an expert visit, and the status of arranging and completing each visit.',
     icon: MapPinned,
-    note: 'Member selection will follow the applicable, authorised AICTE mechanism. No assignment algorithm is built into this phase.',
+    note: 'A role with queue access sees the EVC queue here instead of this shell. Member selection follows the authorised AICTE mechanism; no selection algorithm is built in.',
     sections: [
       { title: 'Cases requiring EVC', description: 'Cases for which an expert visit is required.', ...none('cases') },
       { title: 'Selection and scheduling status', description: 'Progress of arranging each visit.', ...none('scheduling records') },
@@ -105,7 +104,6 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'evc-member',
-    planned: true,
     permission: 'dashboard:evc-member',
     navLabel: 'My visits',
     title: 'EVC member dashboard',
@@ -121,7 +119,6 @@ export const DASHBOARDS: DashboardSpec[] = [
   },
   {
     key: 'shc',
-    planned: true,
     permission: 'dashboard:shc',
     navLabel: 'SHC',
     title: 'SHC dashboard',

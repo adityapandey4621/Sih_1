@@ -1,0 +1,11 @@
+﻿/* EVC and SHC. Colour is only ever a supplement: every state also has words and an icon. */
+
+.observations { display: grid; gap: var(--s-4); margin: 0; padding: 0; list-style: none; }
+.observation { display: grid; gap: var(--s-2); padding: var(--s-4); border: 1px solid var(--line-strong); border-left: 4px solid var(--amber-fill); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.observation[data-recorded='true'] { border-left-color: var(--teal); }
+.member-pick { margin: 0 0 var(--s-3); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); }
+.member-pick legend { padding: 0 var(--s-2); font-weight: 640; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--s-4); margin-top: var(--s-3); }
+.schedule-row { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); list-style: none; }
+.schedule-form { display: grid; gap: var(--s-3); margin-top: var(--s-3); }
+.schedule-form .field { max-width: 36rem; }

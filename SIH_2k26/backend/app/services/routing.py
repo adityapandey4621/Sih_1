@@ -30,24 +30,25 @@ def _ref(s: dict) -> dict:
     return {"stage_key": s["stage_key"], "label": s["label"], "is_conditional": bool(s.get("is_conditional")), "condition_description": s.get("condition_description"), "clause_ref": s.get("clause_ref")}
 
 
-def resolve_next(config: dict) -> RouteResolution:
+def resolve_after(config: dict, from_key: str) -> RouteResolution:
+    """What the frozen route says follows the stage `from_key`. Never a default: ambiguity is EXCEPTION or AWAITING_DETERMINATION."""
     stages: list[dict] = config.get("route") or []
     version = config.get("version", {})
     basis = {"rule_set": config.get("rule_set", {}).get("key"), "rule_version": version.get("number"), "classification": config.get("rule_set", {}).get("classification")}
-    scrutiny = [s for s in stages if s["stage_key"] == STAGE_KEY_SCRUTINY]
-    if len(scrutiny) != 1:
-        why = "The approved route has no scrutiny stage." if not scrutiny else "The approved route has more than one scrutiny stage."
+    here_all = [s for s in stages if s["stage_key"] == from_key]
+    if len(here_all) != 1:
+        why = f"The approved route has no “{from_key}” stage." if not here_all else f"The approved route has more than one “{from_key}” stage."
         return RouteResolution(HandoffStatus.EXCEPTION, why + " The next stage cannot be determined, and none is assumed.", basis=basis)
-    here = scrutiny[0]
+    here = here_all[0]
     basis["from_stage"] = _ref(here)
     nxt_keys = list(here.get("next_stage_keys") or [])
     nxt = [_stage(stages, k) for k in nxt_keys]
     if any(s is None for s in nxt):
-        return RouteResolution(HandoffStatus.EXCEPTION, "The scrutiny stage names a next stage that does not exist in the route.", here["stage_key"], basis=basis)
+        return RouteResolution(HandoffStatus.EXCEPTION, f"The “{from_key}” stage names a next stage that does not exist in the route.", here["stage_key"], basis=basis)
     options = [_ref(s) for s in nxt if s is not None]
     basis["options"] = options
     if not options:
-        return RouteResolution(HandoffStatus.NO_FURTHER_STAGE, "The approved route configures no stage after scrutiny.", here["stage_key"], basis=basis)
+        return RouteResolution(HandoffStatus.NO_FURTHER_STAGE, f"The approved route configures no stage after “{from_key}”.", here["stage_key"], basis=basis)
     if len(options) == 1 and not options[0]["is_conditional"]:
         o = options[0]
         return RouteResolution(HandoffStatus.QUEUED, None, here["stage_key"], o["stage_key"], o["label"], options, basis)
@@ -59,3 +60,14 @@ def resolve_next(config: dict) -> RouteResolution:
             here["stage_key"], None, None, options, basis,
         )
     return RouteResolution(HandoffStatus.AWAITING_DETERMINATION, "The route offers more than one next stage. An authorised person must choose.", here["stage_key"], None, None, options, basis)
+
+
+def resolve_next(config: dict) -> RouteResolution:
+    """What follows scrutiny (Phase 4)."""
+    scrutiny = [s for s in (config.get("route") or []) if s["stage_key"] == STAGE_KEY_SCRUTINY]
+    if len(scrutiny) != 1:
+        version = config.get("version", {})
+        basis = {"rule_set": config.get("rule_set", {}).get("key"), "rule_version": version.get("number"), "classification": config.get("rule_set", {}).get("classification")}
+        why = "The approved route has no scrutiny stage." if not scrutiny else "The approved route has more than one scrutiny stage."
+        return RouteResolution(HandoffStatus.EXCEPTION, why + " The next stage cannot be determined, and none is assumed.", basis=basis)
+    return resolve_after(config, STAGE_KEY_SCRUTINY)

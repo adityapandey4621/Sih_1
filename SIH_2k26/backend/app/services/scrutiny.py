@@ -50,7 +50,7 @@ from app.models_scrutiny import (
     StageHandoff,
 )
 from app.rbac import Role
-from app.services import policy, routing
+from app.services import policy, routing, stages
 from app.services import scrutiny_texts as texts
 from app.services.applications import config_of
 from app.services.errors import Issue, ServiceError, conflict, invalid, not_found
@@ -262,6 +262,7 @@ def determine_handoff(db: Session, actor: User, case_id: uuid.UUID, stage_key: s
     log_event(db, case, actor, "handoff_determined", request=request, object_type="stage_handoff", object_id=handoff.id, reason=reason,
               detail={"to_stage": stage_key, "status": status.value})
     texts.handed_off(db, case, _application(db, case), handoff)
+    stages.on_scrutiny_handoff(db, case, _application(db, case), handoff, actor, request)
     return handoff
 
 
@@ -541,4 +542,5 @@ def complete(db: Session, user: User, case_id: uuid.UUID, row_version: int, summ
     db.flush()
     texts.scrutiny_completed(db, case, app)
     texts.handed_off(db, case, app, handoff)
+    stages.on_scrutiny_handoff(db, case, app, handoff, user, request)  # Phase 5: activate the stage the frozen route names (idempotent), or hand off to the decision stage
     return case

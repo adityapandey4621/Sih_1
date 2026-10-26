@@ -78,4 +78,8 @@ def can_read_application_documents(db: Session, user: User, app: Application) ->
     """Reviewer-side read access to a submitted application's evidence (documents, extraction, previews, preliminary findings)."""
     if Permission.EVIDENCE_READ not in permissions_for(user.role):
         return False
-    return scope_for_application(db, user, app.id).can_read_documents
+    if scope_for_application(db, user, app.id).can_read_documents:
+        return True
+    from app import committee_access  # Phase 5: a committee coordinator of a stage the application is in, or an assigned member
+
+    return committee_access.can_read_documents(db, user, app.id)

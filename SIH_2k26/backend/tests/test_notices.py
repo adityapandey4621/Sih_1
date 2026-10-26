@@ -162,7 +162,10 @@ def test_simultaneous_issue_requests_issue_the_notice_exactly_once():
 
     with ThreadPoolExecutor(4) as pool:
         results = list(pool.map(go, range(4)))
-    assert sorted(code for _, code in results).count(200) == 2 and all(k == "same-key-for-all" for k, c in results if c == 200)  # the winner and its own retry
+    # Whichever request takes the lock first wins. Its key is then the only one that may succeed, and a repeat of that key replays the same notice.
+    winning_keys = {k for k, c in results if c == 200}
+    assert len(winning_keys) == 1 and [c for k, c in results if k not in winning_keys] == [409] * sum(1 for k, _ in results if k not in winning_keys)
+    assert sum(1 for _, c in results if c == 200) == (2 if winning_keys == {"same-key-for-all"} else 1)
     with SessionLocal() as db:
         assert len(db.scalars(select(DeficiencyNotice).where(DeficiencyNotice.status == "ISSUED")).all()) == 1
         assert len(db.scalars(select(Notification).where(Notification.event_type == "NOTICE_ISSUED")).all()) == 1

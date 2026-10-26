@@ -88,3 +88,16 @@ Full description in `SCRUTINY.md`. Scrutiny state lives in its own tables, so a 
 ### Phase 4 control flow
 
 submit → case + round 1 (same transaction) → coordinator assignment (demo, labelled) → reviewer starts, records findings (own conclusions; automated issues are only pointers) → reviewer prepares a notice → issuer inspects the exact content and issues (one transaction, idempotent) → institution sees the notice, uploads corrected evidence (new versions) and submits one response → case moves to re-scrutiny (new round) → reviewer concludes each finding with a reason → completion → hand-off read from the frozen route.
+
+
+## Phase 5 — route engine, EVC and SHC
+
+Full description in `COMMITTEE.md`. The two committee processes share one `committee_cases` table (unique per application and stage) so integrity is kept by foreign keys, but have separate state tables, services, permissions and screens. The route engine (`services/stages.py`) is the only thing that creates a committee case or a decision hand-off, and it reads the frozen route.
+
+### Phase 5 data model (migration `0005`)
+
+`committee_policies` (versioned, source-referenced configuration; only DEMO exists), `committee_cases` (state, trigger, frozen policy snapshot, blockers), `committee_selection_requests` + `committee_assignments` (the provider boundary's record), `committee_schedules` (visit or hearing; rescheduling adds rows), `committee_evidence` (private files or links), `committee_reports` (EVC report / SHC recommendation versions, immutable once submitted, with a snapshot and hash), `committee_events` (append-only), `evc_observations`, `shc_requirements`, `shc_compliance_rounds`, `shc_responses` + items + documents, `shc_findings`, `shc_proceedings` (append-only), `route_transitions`, `decision_handoffs`; `notifications` gains `committee_case_id`. ORM guards: committee state moves only through compare-and-set transitions; submitted reports, issued requirements, submitted responses, recorded schedules and evidence are immutable; events and proceedings are append-only. Partial unique indexes: one live schedule, one open selection request, one open compliance round and one draft report per case.
+
+### Phase 5 control flow
+
+scrutiny completes -> hand-off row -> `stages.on_scrutiny_handoff` (same transaction) -> EVC / SHC case (idempotent) or a determination by a coordinator -> selection provider -> schedule (propose, confirm) -> visit, observations, evidence, report (immutable version) -> coordinator completes -> `route_transitions` -> next stage, determination, or `decision_handoffs`. SHC: requirements -> compliance round -> institution response (new document versions) -> review (findings, hearing, recommendation) -> completion -> the same route step. Recovery: `python -m app.reconcile_committee`.

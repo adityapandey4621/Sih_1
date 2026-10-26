@@ -10,21 +10,21 @@ import '../evidence/evidence.css'
 import { scrutinyApi } from './scrutinyApi'
 
 /** The original documents with what was read from them, beside the case. Every extracted value and automated issue names its version and page. */
-export function EvidenceTab({ caseId, focusItem, refreshKey, onRecordFinding }: { caseId: string; focusItem: string | null; refreshKey: number; onRecordFinding?: (ctx: FindingContext) => void }) {
+export function EvidenceTab({ caseId, focusItem, refreshKey, onRecordFinding, load: loadEvidence }: { caseId: string; focusItem: string | null; refreshKey: number; onRecordFinding?: (ctx: FindingContext) => void; load?: () => Promise<ApplicationEvidence> }) {
   const [data, setData] = useState<ApplicationEvidence | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const d = await scrutinyApi.evidence(caseId)
+      const d = await (loadEvidence ? loadEvidence() : scrutinyApi.evidence(caseId))
       setData(d)
       setSelected((cur) => cur ?? d.items[0]?.item_key ?? null)
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'The evidence could not be loaded.')
     }
-  }, [caseId])
+  }, [caseId, loadEvidence])
   useEffect(() => {
     void load()
   }, [load, refreshKey])

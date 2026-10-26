@@ -209,6 +209,13 @@ def main() -> int:
                 db.commit()
                 created.append(demo_key)
 
+        if settings.demo_rules_enabled:
+            from app.services import committee_policy
+
+            for k in committee_policy.seed_demo_policies(db):
+                created.append(f"committee policy {k} (DEMO ONLY)")
+            db.commit()
+
         # One demo version left in review so the review screen has something real to show.
         ds = db.scalar(select(RuleSet).where(RuleSet.key == "demo-intake-increase-or-additional-courses"))
         if ds is not None and settings.demo_rules_enabled and len(ds.versions) == 1:

@@ -88,9 +88,17 @@ def scrutiny_completed(db: Session, case: ScrutinyCase, app: Application) -> int
 
 
 def handed_off(db: Session, case: ScrutinyCase, app: Application, handoff: StageHandoff) -> int:
+    from app.domain import committee_stage_for
+
     where = handoff.to_stage_label or "(none configured)"
+    if handoff.status == "QUEUED" and committee_stage_for(handoff.to_stage_key):
+        tail = " That stage has been activated."
+    elif handoff.status == "AWAITING_DETERMINATION":
+        tail = " A coordinator must determine whether it applies."
+    else:
+        tail = " That stage's workflow is not available yet."
     return nt.notify(
         db, NotificationEvent.HANDED_OFF, nt.users_with_role(db, Role.SCRUTINY_COORDINATOR), kind="coordinator", scope_key=f"{case.id}:{handoff.status}:{handoff.to_stage_key}",
-        title=f"Hand-off recorded: {app.reference}", body=f"Next stage: {where} ({handoff.status.replace('_', ' ').lower()}). That stage's workflow is not available yet.",
+        title=f"Hand-off recorded: {app.reference}", body=f"Next stage: {where} ({handoff.status.replace('_', ' ').lower()}).{tail}",
         link=f"/app/scrutiny/{case.id}", application_id=app.id, case_id=case.id,
     )

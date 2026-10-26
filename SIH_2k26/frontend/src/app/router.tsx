@@ -24,6 +24,12 @@ const ScrutinyCasePage = lazy(() => import('../features/scrutiny/CasePage'))
 const NoticePage = lazy(() => import('../features/scrutiny/NoticePage'))
 const NoticesListPage = lazy(() => import('../features/scrutiny/InstitutionPanels').then((m) => ({ default: m.NoticesListPage })))
 const NotificationsPage = lazy(() => import('../features/scrutiny/NotificationsPage'))
+const EvcQueuePage = lazy(() => import('../features/committee/QueuePage').then((m) => ({ default: m.EvcQueuePage })))
+const ShcQueuePage = lazy(() => import('../features/committee/QueuePage').then((m) => ({ default: m.ShcQueuePage })))
+const EvcCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.EvcCasePage })))
+const ShcCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.ShcCasePage })))
+const ComplianceListPage = lazy(() => import('../features/committee/InstitutionPanels').then((m) => ({ default: m.ComplianceListPage })))
+const CompliancePage = lazy(() => import('../features/committee/InstitutionPanels'))
 const RulesCatalogPage = lazy(() => import('../features/rules/RulesCatalogPage'))
 const RuleVersionPage = lazy(() => import('../features/rules/RuleVersionPage'))
 const RuleEditorPage = lazy(() => import('../features/rules/RuleEditorPage'))
@@ -82,6 +88,15 @@ export const routes = [
               { path: 'notices', element: guarded('notice:read_own', <NoticesListPage />) },
               { path: 'notices/:id', element: guarded('notice:read_own', <NoticePage />) },
               { path: 'notifications', element: guarded('notifications:read', <NotificationsPage />) },
+              // EVC and SHC (Phase 5): every call is checked again by the backend for role and for this exact case
+              { path: 'evc-coordination', element: guarded('evc:queue', <EvcQueuePage />) },
+              { path: 'evc-member', element: guarded('evc:queue', <EvcQueuePage />) },
+              { path: 'evc/:id', element: guarded('evc:queue', <EvcCasePage />) },
+              { path: 'shc', element: guarded('shc:queue', <ShcQueuePage />) },
+              { path: 'shc/:id', element: guarded('shc:queue', <ShcCasePage />) },
+              // Institution: SHC compliance
+              { path: 'compliance', element: guarded('committee:status_own', <ComplianceListPage />) },
+              { path: 'compliance/:id', element: guarded('shc:respond', <CompliancePage />) },
               // Rule catalogue
               { path: 'rules', element: guarded('rules:read', <RulesCatalogPage />) },
               { path: 'rules/versions/:id', element: guarded('rules:read', <RuleVersionPage />) },

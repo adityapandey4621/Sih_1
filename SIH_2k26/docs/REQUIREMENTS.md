@@ -110,3 +110,18 @@ Roles: **scrutiny_officer** gains `evidence:read` (read-only, submitted applicat
 ### Additional verification gaps (Phase 4)
 
 G-P4-1 … G-P4-6 and the limits listed at the end of `SCRUTINY.md`. In short: the handbook states no response period, issuing officer, template, clarification channel or round limit, so none is encoded; corrigenda after the 2024-27 edition are unchecked. See `APH_VERIFICATION.md`.
+
+## Functional requirements (Phase 5)
+
+- FR-25 The next stage after scrutiny, EVC or SHC is read from the application's frozen route. A conditional stage needs a recorded determination with a reason; a missing or inconsistent route goes to a controlled exception; EVC, SHC and any other stage are never activated together by default.
+- FR-26 An EVC / SHC case is created at most once per application and stage, records why it exists (route, rule version, determination, prior outcome) and freezes the committee configuration it follows.
+- FR-27 Committee members come only from an authorised selection mechanism behind a provider boundary. Without a connected provider, selection is unavailable and says so; a demonstration mode is labelled `DEMO_ONLY` everywhere. A failed or unverifiable result never creates an assignment.
+- FR-28 Visit and hearing schedules are proposed then confirmed, keep their history when rescheduled or cancelled, and accept only modes the configuration permits. The system never claims anyone is available.
+- FR-29 Only an assigned member sees and works a case; a member role alone shows nothing. Coordinators arrange; neither can approve, reject or decide.
+- FR-30 Observations record what was seen, never "compliant". Reports and recommendations are versioned; a submitted version is immutable, retries create no duplicate, and a correction is a new version opened by an authorised coordinator.
+- FR-31 SHC compliance is requested only where the configuration permits it; the institution responds with evidence as new document versions; a response is received, never accepted; findings and recommendations stay separate from each other and from any decision.
+- FR-32 When every stage the route required is complete, a decision hand-off is recorded. It decides nothing.
+
+### Additional verification gaps (Phase 5)
+
+See `COMMITTEE.md`, G-P5-1 … G-P5-9: the December 2025 corrigendum is unverified; the EVC checklist (Annexure-3 / 4) and committee composition are not encoded; the portal selection has no interface; no SHC response period, hearing format or scheduling deadline is established; several release and authority rules are conventions.

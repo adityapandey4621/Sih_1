@@ -100,3 +100,28 @@ Full permission matrix is asserted in `backend/tests/test_scrutiny_security.py` 
 | `GET /api/notifications`, `POST …/{id}/read`, `POST …/read-all` | any signed-in user | Own notifications |
 
 New codes: `selection_unavailable`, `invalid_transition`, `open_draft_exists`, `finding_in_notice_draft`, `findings_pending`, `notice_draft_open`, `documents_still_processing`, `unresolved_findings_need_acknowledgement`, `notice_not_draft`, `notice_not_in_review`, `already_issued`, `content_changed`, `unsourced_items_need_acknowledgement`, `response_policy_unresolved`, `notice_template_unavailable`, `idempotency_key_reused`, `notice_not_open`, `response_already_submitted`, `empty_response`. Retired: `GET /api/review/applications`, `GET /api/review/applications/{id}/evidence`.
+
+## Phase 5 — EVC, SHC, compliance and hand-off
+
+Responses are the case detail objects built by `app/committee_presenters.py` (see `COMMITTEE.md`); every mutating call returns the refreshed case. Idempotency keys (`idempotency_key`, 8-80 chars) are required for selection, scheduling and submission; a replay returns the same record with `X-Idempotent-Replay: true`.
+
+Both prefixes `/api/evc` and `/api/shc` share: `GET /cases` (queue; `state`, `q`, `category_id`, `mine`, `blocked`, `visit_from`, `visit_to`, paging), `GET /cases/{id}`, `GET /cases/{id}/evidence` (Phase 3 evidence package), `GET /assignable` (coordinator; demonstration members only), `POST /cases/{id}/selection`, `POST …/selection/refresh`, `POST …/selection/cancel`, `POST /cases/{id}/schedule`, `POST …/schedule/reschedule`, `POST …/schedule/{sid}/confirm`, `POST …/schedule/{sid}/cancel`, `POST /cases/{id}/route/determine` (coordinator).
+
+| Endpoint | Role | Purpose |
+|---|---|---|
+| `POST /api/evc/cases/{id}/reselect` | EVC coordinator | Withdraw members and any live schedule (reason) |
+| `POST …/visit/start` | assigned EVC member | Start the visit |
+| `PUT …/observations/{item_key}` | assigned EVC member | Record / update an observation (row version) |
+| `POST …/evidence` (multipart), `POST …/evidence/link`, `DELETE …/evidence/{eid}`, `GET /api/evc/evidence/{eid}/download` | member / committee | Private evidence |
+| `PUT …/report`, `POST …/report/submit` | assigned EVC member | Draft / submit the report (immutable version) |
+| `POST …/report/amend`, `POST …/complete` | EVC coordinator | Open an amendment / complete the stage |
+| `POST /api/shc/cases/{id}/requirements`, `PATCH`, `DELETE …/{rid}` | SHC coordinator | Prepare requirements |
+| `POST …/compliance/request`, `POST …/review/start` | SHC coordinator | Put requirements to the institution / start review |
+| `POST …/findings`, `PATCH …/findings/{fid}`, `POST …/proceedings` | assigned SHC member | Assess evidence; append hearing records |
+| `PUT …/recommendation`, `POST …/recommendation/submit` | assigned SHC member | Draft / submit the recommendation |
+| `POST …/recommendation/amend`, `POST …/complete` | SHC coordinator | Amend (new version) / complete |
+| `GET /api/applications/{id}/committee` | institution (own) | Schedules, status, released EVC report; no internal notes |
+| `GET /api/compliance`, `GET /api/compliance/{rid}`, `PUT …/response`, `POST …/requirements/{id}/documents`, `POST …/response/submit` | institution (own) | SHC compliance |
+| `GET /api/committee/decision-handoffs` | coordinators | Applications ready for the later decision stage |
+
+New codes: `selection_unavailable`, `selection_in_progress`, `no_open_selection`, `schedule_exists`, `member_conflict`, `hearing_not_permitted`, `no_members_assigned`, `configuration_blocked`, `no_confirmed_schedule`, `report_incomplete`, `recommendation_incomplete`, `evidence_superseded`, `compliance_not_open`, `compliance_not_permitted`, `compliance_first`, `requirement_issued`, `no_requirements`, `not_awaiting_determination`, `stage_incomplete`, `preceding_stage_incomplete`, `required_stage_incomplete`, `rescrutiny_scope` (Phase 4 correction).

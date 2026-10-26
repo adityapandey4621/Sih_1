@@ -137,7 +137,7 @@ export function AppShell() {
           </button>
         </div>
         <SideNav items={items} onNavigate={() => setDrawer(false)} />
-        <p className="shell__build">Phase 4 — scrutiny, formal notices and re-scrutiny. Committee, decision and appeal stages are not built yet.</p>
+        <p className="shell__build">Phase 5 — scrutiny, notices, expert visits (EVC) and SHC compliance / hearings. Executive Committee decisions and appeals are not built yet.</p>
       </aside>
       {drawer && <div className="shell__scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
 

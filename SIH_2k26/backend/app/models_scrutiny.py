@@ -353,6 +353,7 @@ class Notification(Base):
     application_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("applications.id"))
     case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scrutiny_cases.id"))
     notice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deficiency_notices.id"))
+    committee_case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("committee_cases.id"))  # Phase 5: the EVC / SHC case it concerns
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(String(600))  # never contains internal reviewer notes
     link: Mapped[str | None] = mapped_column(String(200))  # in-app path

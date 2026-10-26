@@ -12,13 +12,12 @@ Each phase ends with working, tested software and a short handoff. Later phases 
 | 2 | Versioned rule catalogue, application intake, basic safe attachments | Implemented |
 | 3 | Secure document processing: versions, OCR, extraction, preliminary evidence checks | Implemented |
 | 4 | Authorised scrutiny and re-scrutiny, formal deficiency process, corrections as new versions | Implemented (see `SCRUTINY.md`) |
-| 5 | EVC coordination, visits and reports | Planned |
-| 6 | SHC compliance and hearings | Planned |
-| 7 | Executive Committee decision records, eligible SAC appeals, undertakings | Planned |
-| 8 | SLA clocks, notifications, document validity and alerts | Planned |
-| 9 | Authorised integration with AICTE systems, hardening, deployment | Planned |
+| 5 | Conditional route engine; EVC (selection boundary, schedule, visit, report) and SHC (compliance, hearing, recommendation); hand-off to the decision stage | Implemented (see `COMMITTEE.md`) |
+| 6 | Executive Committee decision records, eligible SAC appeals, undertakings | Planned |
+| 7 | SLA clocks, notifications, document validity and alerts | Planned |
+| 8 | Authorised integration with AICTE systems, hardening, deployment | Planned |
 
-(Phase 3 was re-scoped to *document processing*; scrutiny and the deficiency process moved to Phase 4 and later phases shifted by one.)
+(Phase 3 was re-scoped to *document processing*; scrutiny and the deficiency process moved to Phase 4. Phase 5 now covers EVC **and** SHC, so decisions/appeals are Phase 6, the SLA engine Phase 7 and integration/hardening Phase 8.)
 
 ## Phase 1 — foundation (implemented)
 
@@ -44,6 +43,10 @@ Explicitly **not** in Phase 3: formal deficiency notices, scrutiny/re-scrutiny w
 ## Phase 4 — scrutiny, notices, responses (implemented)
 
 Queue and scoped reviewer workspace; assignment boundary (demo only); structured reviewer findings; formal notices issued only by an authorised issuer with confirmation, idempotency and atomicity; institution notice and response pages with corrected evidence as new versions; re-scrutiny rounds; completion and route-driven hand-off (never approval); persistent in-app notifications; audit throughout. **Not** in Phase 4: EVC, SHC, Executive Committee, SAC, SLA/reminder engine, external messaging, AICTE integration. Open gaps G-P4-1…6 in `SCRUTINY.md`. **Closing work (2026-10-27):** the official APH 2024-27 was read (`APH_VERIFICATION.md`): no response period, issuing officer, template or round cap is stated; re-scrutiny is limited to the deficiencies already raised (enforced). **Next:** Phase 5, with the Annexure-2 document checklists and a corrigenda check as catalogue work that can run alongside.
+
+## Phase 5 — route engine, EVC and SHC (implemented)
+
+Full description in `COMMITTEE.md`. The route engine reads the next stage from the application's frozen route (never a universal EVC-plus-SHC sequence); conditional stages need a recorded human determination; an EVC / SHC case is created idempotently; a **selection provider boundary** (demo mode labelled `DEMO_ONLY`, real portal not connected); schedules with history; an EVC visit with observations, private evidence and an immutable versioned report; an SHC process with institution compliance (new document versions), findings, hearing records and a versioned recommendation; a **decision hand-off record** once every required stage is complete; in-app notifications, audit and persistent state throughout. **Not** in Phase 5: Executive Committee decisions, SAC appeals, post-approval compliance, the SLA / reminder engine, AICTE integration, any selection algorithm, any official committee checklist (gaps G-P5-1…9). **Recommended next:** encode the verified EVC checklist (Annexure-3 / 4) and committee composition as OFFICIAL policies once the corrigenda are checked, then Phase 6.
 
 ## Phase 4 — original plan, as deferred from Phase 3
 

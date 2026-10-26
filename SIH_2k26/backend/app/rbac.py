@@ -19,6 +19,7 @@ class Role(StrEnum):
     NOTICE_ISSUER = "notice_issuer"  # may issue a formal deficiency notice; never granted implicitly
     EVC_COORDINATOR = "evc_coordinator"
     EVC_MEMBER = "evc_member"
+    SHC_COORDINATOR = "shc_coordinator"  # prepares SHC cases, requests compliance, coordinates hearings (application capability)
     SHC_MEMBER = "shc_member"
     EXECUTIVE_COMMITTEE = "executive_committee"
     SAC_MEMBER = "sac_member"
@@ -64,6 +65,16 @@ class Permission(StrEnum):
     NOTICE_RESPOND = "notice:respond"  # institution: respond to its own issued notices
     NOTIFICATIONS_READ = "notifications:read"  # read one's own in-app notifications
 
+    # Phase 5 - committee processes. Each is further limited by case scope in app/committee_access.py.
+    EVC_QUEUE = "evc:queue"  # see EVC cases within one's scope
+    EVC_COORDINATE = "evc:coordinate"  # selection requests, scheduling, amendments, completing the stage, next-stage determination
+    EVC_WORK = "evc:work"  # an assigned member: visit, observations, evidence, report
+    SHC_QUEUE = "shc:queue"
+    SHC_COORDINATE = "shc:coordinate"  # prepare requirements, request compliance, schedule hearings, complete the stage, determination
+    SHC_WORK = "shc:work"  # an assigned member: findings, proceedings, recommendation
+    SHC_RESPOND = "shc:respond"  # institution: answer a compliance request for its own application
+    COMMITTEE_STATUS_OWN = "committee:status_own"  # institution: see EVC / SHC status of its own applications
+
     # Phase 2 — rule catalogue
     RULES_READ = "rules:read"
     RULES_EDIT = "rules:edit"  # author: create/edit drafts, submit for review
@@ -81,6 +92,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.DOCUMENT_RETRY,
             Permission.NOTICE_READ_OWN,
             Permission.NOTICE_RESPOND,
+            Permission.SHC_RESPOND,
+            Permission.COMMITTEE_STATUS_OWN,
             Permission.NOTIFICATIONS_READ,
         }
     ),
@@ -105,9 +118,11 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.NOTICE_ISSUE, Permission.NOTIFICATIONS_READ,
         }
     ),
-    Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION}),
-    Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER}),
-    Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC}),
+    # Committee coordinators arrange the process; members work only the cases they are assigned. Neither can decide anything.
+    Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION, Permission.EVC_QUEUE, Permission.EVC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER, Permission.EVC_QUEUE, Permission.EVC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.SHC_COORDINATOR: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.EXECUTIVE_COMMITTEE: frozenset({Permission.DASHBOARD_EXECUTIVE}),
     Role.SAC_MEMBER: frozenset({Permission.DASHBOARD_APPEALS}),
     Role.RULES_ADMIN: frozenset({Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_EDIT}),
@@ -130,6 +145,7 @@ ROLE_LABELS: dict[Role, str] = {
     Role.NOTICE_ISSUER: "Notice issuer",
     Role.EVC_COORDINATOR: "EVC coordinator",
     Role.EVC_MEMBER: "EVC member",
+    Role.SHC_COORDINATOR: "SHC coordinator",
     Role.SHC_MEMBER: "SHC member",
     Role.EXECUTIVE_COMMITTEE: "Executive Committee",
     Role.SAC_MEMBER: "SAC member",

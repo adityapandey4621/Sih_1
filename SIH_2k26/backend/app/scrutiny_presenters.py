@@ -413,10 +413,16 @@ def case_detail(db: Session, user: User, case: ScrutinyCase, scope: Scope, setti
         })
     h = None
     if handoff is not None:
+        from app.domain import committee_stage_for
+        from app.models_committee import CommitteeCase
+
+        stage = committee_stage_for(handoff.to_stage_key)
+        activated = db.scalar(select(CommitteeCase).where(CommitteeCase.application_id == app.id, CommitteeCase.stage == stage.value)) if stage else None
         h = HandoffOut(
             id=handoff.id, status=handoff.status, from_stage_key=handoff.from_stage_key, to_stage_key=handoff.to_stage_key, to_stage_label=handoff.to_stage_label, reason=handoff.reason,
             options=(handoff.route_basis or {}).get("options", []), determined_by=_name(db, handoff.determined_by_id), determined_at=handoff.determined_at,
-            determination_reason=handoff.determination_reason, created_at=handoff.created_at, module_available=False,
+            determination_reason=handoff.determination_reason, created_at=handoff.created_at, module_available=activated is not None and handoff.status == "QUEUED",
+            activated_stage=activated.stage if activated else None, activated_case_id=activated.id if activated else None,
         )
     return CaseDetailOut(
         queue=queue_item(db, case, app, settings), scope=sorted(scope.kinds), selection=SelectionOut(mode=sel.mode, available=sel.available, label=sel.label, notice=sel.notice),

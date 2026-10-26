@@ -1,4 +1,4 @@
-"""Direct-API permission matrix, immutability of history, notifications (acceptance 14, 32, 33, 38)."""
+﻿"""Direct-API permission matrix, immutability of history, notifications (acceptance 14, 32, 33, 38)."""
 
 import uuid
 
@@ -55,7 +55,8 @@ def test_every_new_endpoint_rejects_anonymous_callers(world):
 ALLOWED = {
     ("GET", "/api/scrutiny/cases"): {"scrutiny_officer", "scrutiny_coordinator", "notice_issuer"},
     ("GET", "/api/scrutiny/cases/{case_id}"): {"scrutiny_officer", "scrutiny_coordinator", "notice_issuer"},
-    ("GET", "/api/scrutiny/cases/{case_id}/evidence"): {"scrutiny_officer", "notice_issuer"},
+    # EVIDENCE_READ also opens the permission gate for committee roles (Phase 5); without scrutiny scope the case is simply "not found" (404), tested in test_committee_security
+    ("GET", "/api/scrutiny/cases/{case_id}/evidence"): {"scrutiny_officer", "notice_issuer", "evc_coordinator", "evc_member", "shc_member"},
     ("GET", "/api/scrutiny/handoffs"): {"scrutiny_coordinator"},
     ("GET", "/api/scrutiny/assignable"): {"scrutiny_coordinator"},
     ("POST", "/api/scrutiny/cases/{case_id}/assign"): {"scrutiny_coordinator"},

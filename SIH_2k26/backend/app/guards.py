@@ -11,6 +11,19 @@ from sqlalchemy.orm import Session
 
 from app.models_applications import Application, ApplicationDocument
 from app.models_catalogue import ChecklistItem, DeadlinePolicy, RouteStage, RuleSource, RuleVersion, RuleVersionSource
+from app.models_committee import (
+    CommitteeCase,
+    CommitteeEventRow,
+    CommitteeEvidence,
+    CommitteeReport,
+    CommitteeSchedule,
+    SelectionRequest,
+    ShcProceeding,
+    ShcRequirement,
+    ShcResponse,
+    ShcResponseDocument,
+    ShcResponseItem,
+)
 from app.models_scrutiny import (
     DeficiencyNotice,
     FindingEvent,
@@ -122,6 +135,46 @@ def _guard(session: Session, flush_context, instances) -> None:  # noqa: ANN001
             if obj not in session.new:
                 raise ImmutableRecordError("History records are append-only.")
 
+        # ---- Phase 5: committee records ----
+        elif isinstance(obj, CommitteeEventRow | ShcProceeding):
+            if obj not in session.new:
+                raise ImmutableRecordError("History records are append-only.")
+
+        elif isinstance(obj, CommitteeCase):
+            # State moves only through the compare-and-set transition function (Core UPDATE), never an ORM assignment.
+            if obj not in session.new and (obj in session.deleted or _real_changes(obj)):
+                raise ImmutableRecordError("A committee case changes state only through the workflow transitions.")
+
+        elif isinstance(obj, CommitteeReport):
+            if obj not in session.new and (obj in session.deleted or (_original(obj, "status") == "SUBMITTED")):
+                raise ImmutableRecordError("A submitted report or recommendation cannot be modified; an authorised amendment creates a new version.")
+
+        elif isinstance(obj, CommitteeSchedule):
+            # Rescheduling closes a row and adds another; the date, place and mode of a recorded schedule are never rewritten.
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("start_at", "timezone", "mode", "mode_reason", "location", "access_details", "case_id", "kind", "sequence"))):
+                raise ImmutableRecordError("A recorded schedule cannot be rewritten; reschedule instead.")
+
+        elif isinstance(obj, SelectionRequest):
+            if obj not in session.new and obj in session.deleted:
+                raise ImmutableRecordError("A selection request is part of the record and cannot be deleted.")
+
+        elif isinstance(obj, CommitteeEvidence):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("storage_key", "sha256", "url", "case_id", "kind", "size_bytes", "original_filename"))):
+                raise ImmutableRecordError("Recorded evidence cannot be altered.")
+
+        elif isinstance(obj, ShcRequirement):
+            if obj not in session.new and (obj in session.deleted or (_original(obj, "round_id") is not None and _real_changes(obj))):
+                raise ImmutableRecordError("A requirement already put to the institution cannot be changed.")
+
+        elif isinstance(obj, ShcResponse):
+            if obj not in session.new and (obj in session.deleted or (_original(obj, "status") == "SUBMITTED" and _real_changes(obj))):
+                raise ImmutableRecordError("A submitted compliance response cannot be modified.")
+
+        elif isinstance(obj, ShcResponseItem | ShcResponseDocument):
+            resp = _shc_response_of(session, obj)
+            if resp is not None and resp not in session.new and _original(resp, "status") == "SUBMITTED":
+                raise ImmutableRecordError("A submitted compliance response cannot be modified.")
+
 
 def _real_changes(obj) -> bool:
     return any(inspect(obj).attrs[a.key].history.has_changes() for a in inspect(obj).mapper.column_attrs)
@@ -137,3 +190,10 @@ def _response_of(session: Session, obj):
         return session.get(NoticeResponse, obj.response_id) if obj.response_id else obj.response
     item = session.get(NoticeResponseItem, obj.response_item_id) if obj.response_item_id else None
     return session.get(NoticeResponse, item.response_id) if item is not None else None
+
+
+def _shc_response_of(session: Session, obj):
+    if isinstance(obj, ShcResponseItem):
+        return session.get(ShcResponse, obj.response_id) if obj.response_id else obj.response
+    item = session.get(ShcResponseItem, obj.response_item_id) if obj.response_item_id else None
+    return session.get(ShcResponse, item.response_id) if item is not None else None
