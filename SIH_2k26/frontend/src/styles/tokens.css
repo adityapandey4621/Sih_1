@@ -1,0 +1,50 @@
+:root {
+  /* Surfaces */
+  --paper: #f7f6f2;
+  --paper-2: #efede6;
+  --surface: #fcfbf8;
+  --line: #d9d6cc;
+  --line-strong: #bdb9ac;
+
+  /* Structure */
+  --ink: #18334a;
+  --ink-2: #254661;
+  --slate: #647f91;
+  --text: #23282d;
+  --text-muted: #586873;
+  --on-ink: #f7f6f2;
+
+  /* State (each is paired with a text label and an icon wherever used) */
+  --teal: #3b6c68;
+  --teal-bg: #e3edeb;
+  --amber: #8a5d16;
+  --amber-fill: #c18a43;
+  --amber-bg: #f4e9d3;
+  --green: #2f6b47;
+  --green-bg: #e0eee5;
+  --red: #a33a32;
+  --red-bg: #f6e2df;
+
+  /* Type */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* Space (4px base) */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4.5rem;
+  --s-9: 7rem;
+
+  --radius: 4px;
+  --radius-sm: 2px;
+  --measure: 72rem;
+  --gutter: clamp(1rem, 4vw, 2.5rem);
+  --header-h: 3.75rem;
+  --focus: 0 0 0 2px var(--paper), 0 0 0 4px var(--teal);
+}

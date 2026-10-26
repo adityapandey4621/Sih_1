@@ -1,0 +1,26 @@
+.muted { color: var(--text-muted); }
+.nowrap { white-space: nowrap; }
+.inline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.section-title { margin: var(--s-6) 0 var(--s-3); font-size: 1.0625rem; font-weight: 640; color: var(--ink); }
+.invite-link { margin-top: var(--s-2); padding: var(--s-2) var(--s-3); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow-wrap: anywhere; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: var(--s-1); margin: var(--s-5) 0 var(--s-4); }
+.tab { min-height: 2.25rem; padding: 0 var(--s-4); background: none; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 0.875rem; cursor: pointer; }
+.tab:hover { background: var(--paper-2); }
+.tab[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+
+.requests { display: grid; gap: var(--s-3); }
+.request { display: grid; gap: var(--s-2); padding: var(--s-4) var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.request__head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-3); }
+.request__inst { font-weight: 640; color: var(--ink); }
+.request__meta { font-size: 0.875rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.request__side { display: grid; justify-items: end; gap: var(--s-1); }
+.request__date { font-size: 0.75rem; color: var(--text-muted); }
+.request__reason { max-width: 70ch; white-space: pre-wrap; }
+.reject-form { display: grid; gap: var(--s-2); max-width: 28rem; }
+
+.invite-form { display: grid; gap: var(--s-3); margin-top: var(--s-5); padding: var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.invite-form .section-title { margin: 0; }
+.invite-form__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--s-4); }
+.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); margin-top: var(--s-3); font-size: 0.875rem; }
+.pager .inline-actions { margin: 0; }
