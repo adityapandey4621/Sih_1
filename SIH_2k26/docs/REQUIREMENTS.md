@@ -62,9 +62,9 @@ No rule in the catalogue is verified against the official AICTE publication. Not
 
 | # | Gap | Effect in the product |
 |---|---|---|
-| G1 | The official APH PDF (`aicte.gov.in/.../APH%20Final.pdf`) returned HTTP 502 on 2026-10-26. All APH content was read via the project's curated reference pack (`docs/sources/`), which states it is not the full APH and not an official publication, and which cross-checked a non-authoritative mirror | Every APH-derived source is `SECONDARY_UNVERIFIED`; official-classified rule versions cannot be published |
+| G1 | **Partly closed 2026-10-27.** The official host stayed unreachable, but the team supplied the official 2024-27 handbook PDF (`docs/sources/2025031399.pdf`); Ch. I 1.8–1.11 and Ch. II 2.23–2.24 / Table 2.3 were read in it (`APH_VERIFICATION.md`). Corrigenda after December 2023 are unchecked | The two APH clause sources are `VERIFIED_OFFICIAL` (this edition only); the summary, mirror and corrigendum report stay `SECONDARY_UNVERIFIED`; official versions remain unpublishable (checklists not encoded, corrigenda unchecked) |
 | G2 | **Document checklists** per application category: none are stated in the available sources | Checklist for official drafts is empty (blocks publication). The only checklists are `[DEMO]` items |
-| G3 | Table 2.3 is reproduced only as "selected examples"; the full table, its footnotes and applicability to each academic year (2024-25 … 2026-27) are unverified | Five route shapes seeded as unpublishable drafts, for 2026-27 only |
+| G3 | Table 2.3 was read in full in the official PDF and the five seeded routes match it; applicability to each academic year (2024-25 … 2026-27) and later corrigenda are unverified | Five route shapes seeded as unpublishable drafts, for 2026-27 only |
 | G4 | Reported corrigendum of 2 December 2025 (EVC constitution/modes, SAC constitution) is known only from a secondary report | Recorded as a source; **not encoded** anywhere |
 | G5 | Appeal deadline trigger differs between Ch. I cl. 1.11 (7 days from issue of LoD) and Ch. II cl. 2.24 (7 days from upload of the Executive Committee decision); which governs each category is not established | One policy for cl. 2.24 stored on unpublishable drafts, marked "applicability NOT confirmed"; calendar vs working days unspecified. No global appeal clock |
 | G6 | SLA durations, escalation ladders, pause/resume rules: not established | Deadline policies carry no duration unless sourced; demo policy has none |
@@ -109,4 +109,4 @@ Roles: **scrutiny_officer** gains `evidence:read` (read-only, submitted applicat
 
 ### Additional verification gaps (Phase 4)
 
-G-P4-1 … G-P4-6 and the limits listed at the end of `SCRUTINY.md`. In short: no verified response period, no verified issuing authority, no approved notice template, no verified clarification mechanism or round limit, official APH PDF still unreachable.
+G-P4-1 … G-P4-6 and the limits listed at the end of `SCRUTINY.md`. In short: the handbook states no response period, issuing officer, template, clarification channel or round limit, so none is encoded; corrigenda after the 2024-27 edition are unchecked. See `APH_VERIFICATION.md`.

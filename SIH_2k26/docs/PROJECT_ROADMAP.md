@@ -43,11 +43,11 @@ Explicitly **not** in Phase 3: formal deficiency notices, scrutiny/re-scrutiny w
 
 ## Phase 4 — scrutiny, notices, responses (implemented)
 
-Queue and scoped reviewer workspace; assignment boundary (demo only); structured reviewer findings; formal notices issued only by an authorised issuer with confirmation, idempotency and atomicity; institution notice and response pages with corrected evidence as new versions; re-scrutiny rounds; completion and route-driven hand-off (never approval); persistent in-app notifications; audit throughout. **Not** in Phase 4: EVC, SHC, Executive Committee, SAC, SLA/reminder engine, external messaging, AICTE integration. Open gaps G-P4-1…6 in `SCRUTINY.md`. **Recommended next task:** obtain and verify the official APH text (response period, issuing authority, template, clarification and round limits), then Phase 5.
+Queue and scoped reviewer workspace; assignment boundary (demo only); structured reviewer findings; formal notices issued only by an authorised issuer with confirmation, idempotency and atomicity; institution notice and response pages with corrected evidence as new versions; re-scrutiny rounds; completion and route-driven hand-off (never approval); persistent in-app notifications; audit throughout. **Not** in Phase 4: EVC, SHC, Executive Committee, SAC, SLA/reminder engine, external messaging, AICTE integration. Open gaps G-P4-1…6 in `SCRUTINY.md`. **Closing work (2026-10-27):** the official APH 2024-27 was read (`APH_VERIFICATION.md`): no response period, issuing officer, template or round cap is stated; re-scrutiny is limited to the deficiencies already raised (enforced). **Next:** Phase 5, with the Annexure-2 document checklists and a corrigenda check as catalogue work that can run alongside.
 
 ## Phase 4 — original plan, as deferred from Phase 3
 
-- **First task:** obtain and verify the official APH text so the demo configuration can be replaced with verified, source-cited versions (carried since Phase 2).
+- ~~First task: obtain and verify the official APH text~~ — done for the 2024-27 edition (`APH_VERIFICATION.md`); encoding Annexure-2 checklists and checking later corrigenda remain.
 - Reviewer **assignment** scopes (today every scrutiny officer sees every submitted application).
 - Authorised **deficiency process**: an officer, not OCR, decides what is a deficiency; institution notices; corrected evidence as **new versions** after submission through a controlled correction mechanism; re-scrutiny never auto-passes.
 - Hardening: real ClamAV integration test, encryption/retention policy for stored text, duplicate-application detection, object storage behind `LocalStorage`, OCR languages beyond English, table/layout extraction where a requirement justifies it.

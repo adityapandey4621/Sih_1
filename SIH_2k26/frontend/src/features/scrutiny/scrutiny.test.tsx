@@ -208,6 +208,13 @@ describe('reviewer workspace', () => {
     expect(await screen.findAllByText('Under re-scrutiny')).not.toHaveLength(0)
   })
 
+  it('explains that re-scrutiny cannot record new findings and offers no way to', async () => {
+    open(caseDetail({ queue: queueItem({ state: 'UNDER_RESCRUTINY', state_label: 'Under re-scrutiny' }), findings: [reviewFinding({ state: 'NOTICED' })], allowed_actions: ['conclude_finding', 'complete'] }))
+    await userEvent.click(await screen.findByRole('tab', { name: /^Findings/ }))
+    expect(await screen.findByText('Re-scrutiny checks only the deficiencies already raised')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Record a finding' })).not.toBeInTheDocument()
+  })
+
   it('tells the person plainly when the case was changed by someone else, and reloads it', async () => {
     let loads = 0
     const api = mockApi({

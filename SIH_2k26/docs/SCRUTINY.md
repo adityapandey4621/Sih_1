@@ -23,7 +23,7 @@ No processing module can reach the notice tables (asserted by a test that reads 
 
 **Finding**: `OPEN → NOTICED → RESOLVED | UNRESOLVED | NOT_SUPPORTED`; `OPEN → RESOLVED | NOT_SUPPORTED`; `UNRESOLVED → NOTICED | RESOLVED | NOT_SUPPORTED`. `RESOLVED` and `NOT_SUPPORTED` are final. Every conclusion needs a reason and is recorded with its round.
 
-**Rounds**: round 1 is initial scrutiny; each submitted response opens a `RE_SCRUTINY` round. Earlier rounds are never overwritten (`NOTICE_ISSUED`/`COMPLETED`). Reviewer working notes are per round and internal.
+**Rounds**: round 1 is initial scrutiny; each submitted response opens a `RE_SCRUTINY` round, in which reviewers conclude the existing findings but cannot record new ones (handbook cl. 1.8(g)). Earlier rounds are never overwritten (`NOTICE_ISSUED`/`COMPLETED`). Reviewer working notes are per round and internal.
 
 ## Who can do what (`app/rbac.py`, then case scope in `app/scrutiny_access.py`)
 
@@ -46,9 +46,11 @@ These are *application capabilities*, not claims about official AICTE designatio
 
 ## Response period: no invented dates (`services/policy.py`)
 
+The official handbook states no response period for these deficiencies (`APH_VERIFICATION.md`). A policy that records exactly that (no duration, verified source) is *settled*: it sets no due date and does not block issuance. A missing, ambiguous or unverified policy still blocks a non-demo notice.
+
 A notice's due date exists only if exactly one policy with trigger `deficiency_notice_issued` states a duration and unit, counts in `CALENDAR` convention, and cites a source that is `VERIFIED_OFFICIAL` (or `DEMO_ONLY` on a `DEMO` case where demo rules are on). Otherwise: `NO_DURATION`, `MISSING`, `AMBIGUOUS`, `UNSUPPORTED` (working days, or no convention), or `UNVERIFIED`.
 - A **demo** case may still issue, with no due date and a clear "no deadline established".
-- A **non-demo** case cannot issue: it is blocked (`409`), the refusal is audited, and a configuration gap (`incomplete`) is recorded for the rule reviewers. It is also blocked while no approved notice template exists (none does).
+- A **non-demo** case cannot issue while the policy is unsettled (missing, ambiguous, unverified, working-day): it is blocked (`409`), the refusal is audited, and a configuration gap (`incomplete`) is recorded. It is also blocked while no approved notice template exists (none does), so a non-demo notice is still not issuable today.
 - The policy is read from the application's **frozen** configuration and the result is stored on the notice, so a later rule version never moves an existing date or rebinds a case.
 - Lateness is recorded (`after_due_date`) but not enforced: no verified late-response rule exists.
 
@@ -95,11 +97,11 @@ cd ..\frontend; npm run dev
 
 ## Verification gaps and limits (nothing here is verified against the official handbook)
 
-- **G-P4-1** The official APH PDF was unreachable again (HTTP 404 / connection reset on 2026-10-26). Clause 1.8 and Table 2.3 were read only through the project's curated pack, which states a response period for deficiencies **nowhere**. No duration is encoded for any category.
-- **G-P4-2** Which AICTE role issues a deficiency notice, and whether a separate issuer is required, is not established. The product models it as the separate `notice:issue` capability.
+- **G-P4-1 (closed 2026-10-27, see `APH_VERIFICATION.md`)** The official handbook PDF (2024-27) was supplied and read. It states **no** response period for scrutiny deficiencies (cl. 1.8(b), (f), (g)), so none is encoded; the 7-day appeal windows are a different event. Currency against later corrigenda is still open (G-P4-6).
+- **G-P4-2** The handbook (cl. 1.8(f)) says deficiencies are communicated through the web portal on the Scrutiny Committee's recommendation, and does not name who issues them. The product still models it as the separate `notice:issue` capability. The handbook's "Letter of Deficiency" (cl. 1.10) is an Executive Committee output, a different instrument that this product does not produce.
 - **G-P4-3** The scrutiny stage is identified by the route-stage key `scrutiny` (a convention in the catalogue and seed data, not a verified fact).
 - **G-P4-4** No approved notice template, signature or seal exists; only a labelled demo template. Counting conventions (does the issue day count, cut-off times) for due dates are unverified.
-- **G-P4-5** Whether the official process allows a clarification request outside a formal notice, and any limit on notice rounds, is unknown. Neither a clarification channel nor a maximum is implemented; rounds are uncapped.
+- **G-P4-5** The handbook directs queries and clarifications to the CSS portal only (Ch. VIII item 12) and states no cap on scrutiny rounds (Annexure-7 draws one re-scrutiny). Neither a clarification channel nor a maximum is implemented; rounds are uncapped. Re-scrutiny verifies only the deficiencies already raised (cl. 1.8(g)): new findings are refused in that round.
 - **G-P4-6** The December 2025 corrigendum (EVC / SAC constitution) is still unverified from a primary source.
 - Notice items can request files only for a checklist **document requirement** of the frozen rule version; arbitrary extra attachments are not supported.
 - Stored text and responses have no retention policy or encryption at rest (unchanged from Phase 3).

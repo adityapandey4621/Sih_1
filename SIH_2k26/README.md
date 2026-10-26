@@ -4,12 +4,12 @@ Integrated approval workflow, compliance monitoring and alert management. The pr
 
 **Status: Phase 4 — authorised scrutiny, formal deficiency notices and re-scrutiny** (queue, scoped reviewer workspace, notices issued only by an authorised issuer, institution responses with corrected evidence as new versions, hand-off to the next configured stage, in-app notifications), on top of Phase 3 document processing, the Phase 2 rule catalogue and intake and the Phase 1 foundation. EVC, SHC, Executive Committee, SAC, the deadline engine and AICTE integration are **not** built; completing scrutiny is never an approval. See `docs/SCRUTINY.md`. See `docs/PROJECT_ROADMAP.md`.
 
-> **No rule in this system is verified against the official AICTE publication.** The only selectable configuration is seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**. See `docs/RULE_CATALOGUE.md` and the gaps in `docs/REQUIREMENTS.md`.
+> **The official Approval Process Handbook 2024-27 has been read for the clauses the product relies on** (`docs/APH_VERIFICATION.md`), but **no document checklist is encoded and later corrigenda are unchecked**, so the only selectable configuration is still seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**. See `docs/RULE_CATALOGUE.md` and the gaps in `docs/REQUIREMENTS.md`.
 
 ```
 backend/   FastAPI + SQLAlchemy + Alembic (PostgreSQL)
 frontend/  Vite + React + TypeScript SPA
-docs/      ROADMAP, ARCHITECTURE, REQUIREMENTS (incl. rule-source gaps), RULE_CATALOGUE, DOCUMENT_PROCESSING, API, DESIGN_SYSTEM, DECISIONS
+docs/      ROADMAP, ARCHITECTURE, REQUIREMENTS (incl. rule-source gaps), RULE_CATALOGUE, DOCUMENT_PROCESSING, SCRUTINY, APH_VERIFICATION, API, DESIGN_SYSTEM, DECISIONS
            sources/ = the AICTE reference pack supplied by the team (not official publications)
 ```
 
@@ -66,9 +66,9 @@ Try it: sign in as `institute.user@…` -> Applications -> New application. As `
 ## Checks
 
 ```powershell
-cd backend;  .\.venv\Scripts\python -m pytest -q                 # SQLite by default (288 pass; 2 PostgreSQL-only tests skipped; 3 real-Tesseract tests skip when no Tesseract is configured)
+cd backend;  .\.venv\Scripts\python -m pytest -q                 # SQLite by default (PostgreSQL-only and real-Tesseract tests skip when not configured)
 $env:TEST_DATABASE_URL="postgresql+psycopg://…/sih_test"; pytest  # same suite on PostgreSQL
-cd frontend; npm run typecheck; npm test; npm run build        # 87 tests; no ESLint is configured
+cd frontend; npm run typecheck; npm test; npm run build        # no ESLint is configured
 ```
 
 ## Operations notes

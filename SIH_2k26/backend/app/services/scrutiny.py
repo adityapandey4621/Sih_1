@@ -384,6 +384,9 @@ def _validate_finding(db: Session, case: ScrutinyCase, app: Application, config:
 def create_finding(db: Session, user: User, case_id: uuid.UUID, data: dict, request: Request | None) -> ScrutinyFinding:
     case = _require_reviewer(db, user, case_id, request)
     _require_working(case)
+    if case.state == CaseState.UNDER_RESCRUTINY.value:
+        raise conflict("rescrutiny_scope", "Re-scrutiny verifies only the deficiencies already pointed out (Approval Process Handbook 2024-27, Ch. I cl. 1.8(g)), so a new finding cannot be recorded in this round. "
+                                            "Conclude the existing findings; anything else is for the authorised process to raise.")
     app = _application(db, case)
     values = _validate_finding(db, case, app, config_of(app), data)
     rnd = open_round(db, case.id)

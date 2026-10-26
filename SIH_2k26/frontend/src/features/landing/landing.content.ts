@@ -78,27 +78,27 @@ export const OVERVIEW: OverviewItem[] = [
   {
     title: 'Application and document intake',
     body: 'One place for an institution to submit an application and its evidence, against a checklist generated from the applicable approved rules.',
-    status: 'Planned · Phase 2',
+    status: 'Built · Phase 2',
   },
   {
     title: 'Document intelligence and deficiency handling',
-    body: 'Documents are read for completeness and validity. Problems become clear, trackable correction requests rather than scattered correspondence.',
-    status: 'Planned · Phase 3',
+    body: 'Documents are read for completeness and validity. Possible problems are pointed out to a person; only an authorised official decides what is a deficiency.',
+    status: 'Built · Phase 3',
   },
   {
     title: 'Human-led scrutiny and conditional committee processes',
-    body: 'Scrutiny, re-scrutiny, expert visits and hearings follow the official process, each step assigned to an accountable person.',
-    status: 'Planned · Phases 3–5',
+    body: 'Scrutiny, formal deficiency notices, institution responses and re-scrutiny are built, each step assigned to an accountable person. Expert visits and hearings follow in later phases.',
+    status: 'Scrutiny built · Phase 4 · expert visits Phase 5 · hearings Phase 6',
   },
   {
     title: 'Decisions, appeals and continuing compliance',
     body: 'Authorised decisions are recorded with their supporting record. Eligible appeals and later obligations are followed through.',
-    status: 'Planned · Phase 6',
+    status: 'Planned · Phase 7',
   },
   {
     title: 'Deadlines, notifications and audit trail',
-    body: 'Clocks, reminders and a durable record of who did what and when. The audit trail already covers sign-ins and account administration.',
-    status: 'Audit foundation built · deadlines Phase 7',
+    body: 'Clocks, reminders and a durable record of who did what and when. The audit trail already covers sign-ins, administration, applications, scrutiny and notices; in-app notifications exist, and email or SMS is not configured.',
+    status: 'Audit and in-app notifications built · deadlines Phase 8',
   },
 ]
 

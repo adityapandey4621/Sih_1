@@ -205,6 +205,17 @@ def test_the_response_policy_resolves_to_a_due_date_only_when_it_is_usable(confi
         assert res.due_at(issued) is None
 
 
+@pytest.mark.parametrize(
+    "status,settled",
+    [("VERIFIED_OFFICIAL", True), ("SECONDARY_UNVERIFIED", False), ("PROPOSED_POLICY", False), ("DEMO_ONLY", False)],
+)
+def test_a_policy_with_no_duration_is_settled_only_when_a_verified_official_source_states_it(status, settled):
+    """The APH states no response period for cl. 1.8(f) deficiencies. That is settled knowledge only from a verified source; either way no due date exists."""
+    res = policy.resolve_response_policy(cfg([pol(duration_value=None, duration_unit=None, calendar_convention=None)], "OFFICIAL", [{"id": "s1", "title": "T", "verification_status": status}]), Settings())
+    assert res.state.value == "NO_DURATION" and res.settled is settled and res.due_at(datetime(2026, 1, 1, tzinfo=UTC)) is None
+    assert ("verified official source states no fixed" in res.message) is settled
+
+
 def test_demo_policy_is_not_usable_when_demo_rules_are_disabled_or_in_production():
     config = cfg([pol()], "DEMO", [{"id": "s1", "title": "T", "verification_status": "DEMO_ONLY"}])
     assert policy.resolve_response_policy(config, Settings(allow_demo_rules=False)).state.value == "UNVERIFIED"
@@ -256,9 +267,10 @@ def official_assign(w):
         db.commit()
 
 
-@pytest.mark.parametrize("days", [None, 15])
-def test_a_non_demo_case_cannot_issue_a_notice_without_an_approved_template_and_a_verified_response_period(days):
-    w = make_world(classification=Classification.OFFICIAL, response_days=days)
+@pytest.mark.parametrize("days", [None, 15, "missing"])
+def test_a_non_demo_case_cannot_issue_a_notice_without_an_approved_template_and_a_settled_response_period(days):
+    """None: a verified source states no period (settled, nothing to compute). 15: a verified period. "missing": the configuration has no policy at all."""
+    w = make_world(classification=Classification.OFFICIAL, **({"deadlines": []} if days == "missing" else {"response_days": days}))
     w.upload()
     drain()
     w.submit(assign=False)
@@ -268,8 +280,8 @@ def test_a_non_demo_case_cannot_issue_a_notice_without_an_approved_template_and_
     pv = w.issuer.get(f"/api/scrutiny/notices/{n['id']}/preview").json()
     codes = {b["code"] for b in pv["blockers"]}
     assert "notice_template_unavailable" in codes and pv["can_issue"] is False
-    assert ("response_policy_unresolved" in codes) == (days is None)
-    assert pv["policy"]["state"] == ("NO_DURATION" if days is None else "COMPUTED") and pv["content"]["template"] is None
+    assert ("response_policy_unresolved" in codes) == (days == "missing")
+    assert pv["policy"]["state"] == {None: "NO_DURATION", 15: "COMPUTED", "missing": "MISSING"}[days] and pv["content"]["template"] is None
     body = {"content_hash": pv["content_hash"], "issue_reason": "Attempting to issue an official notice.", "acknowledge_unsourced": True, "idempotency_key": "official-key-1", "row_version": pv["row_version"]}
     r = w.issuer.post(f"/api/scrutiny/notices/{n['id']}/issue", body)
     assert r.status_code == 409 and {i["code"] for i in r.json()["issues"]} == codes
@@ -277,7 +289,7 @@ def test_a_non_demo_case_cannot_issue_a_notice_without_an_approved_template_and_
         assert db.scalar(select(DeficiencyNotice.status)) == "IN_REVIEW" and db.scalar(select(DeficiencyNotice.response_due_at)) is None
         assert db.scalar(select(AuditEvent).where(AuditEvent.action == "notice.issue_blocked")) is not None
         gaps = db.scalars(select(ConfigurationGap)).all()
-    assert (len(gaps) == 1 and gaps[0].reason == "incomplete" and gaps[0].detail["missing"] == "deficiency_notice_response_policy") == (days is None)
+    assert (len(gaps) == 1 and gaps[0].reason == "incomplete" and gaps[0].detail["missing"] == "deficiency_notice_response_policy") == (days == "missing")
     assert w.a.get("/api/notices").json() == []  # nothing official was shown to the institution
 
 

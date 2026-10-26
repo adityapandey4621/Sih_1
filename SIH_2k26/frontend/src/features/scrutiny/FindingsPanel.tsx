@@ -187,6 +187,11 @@ export function FindingsPanel({
       <Alert tone="info">
         These are conclusions recorded by a person. Automated checks only point at possible problems; nothing here is a formal notice until an authorised issuer issues one.
       </Alert>
+      {canWork && !allowed.includes('record_finding') && (
+        <Alert tone="info" title="Re-scrutiny checks only the deficiencies already raised">
+          The Approval Process Handbook (Ch. I cl. 1.8(g)) limits re-scrutiny to the deficiencies the scrutiny pointed out, so no new finding can be recorded in this round. Conclude each existing finding with the evidence the institution supplied.
+        </Alert>
+      )}
       {findings.length === 0 && <p className="note">No findings have been recorded. If your examination finds nothing to raise, you can complete the round without findings.</p>}
       {pending.length > 0 && (
         <>

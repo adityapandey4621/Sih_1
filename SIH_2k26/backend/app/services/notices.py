@@ -319,7 +319,7 @@ def preview(db: Session, n: DeficiencyNotice, settings: Settings) -> Preview:
     demo = policy.is_demo_case(config)
     if not demo:
         p.blockers.append(Blocker("notice_template_unavailable", "No approved notice template is configured for this case. A formal notice cannot be issued with invented wording; a person must configure an approved template first."))
-    if not pol.usable and not (demo and settings.demo_rules_enabled):
+    if not pol.settled and not (demo and settings.demo_rules_enabled):
         p.blockers.append(Blocker("response_policy_unresolved", f"The response period cannot be established: {pol.message} This has been routed to the rule configuration reviewers; no due date will be invented."))
     p.unsourced = [i.position for i in n.items if i.source_ref_status != SourceRefStatus.ESTABLISHED.value]
     return p

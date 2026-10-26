@@ -364,7 +364,8 @@ def _actions(case: ScrutinyCase, scope: Scope, selection_available: bool, has_dr
         if s in (CaseState.READY_FOR_SCRUTINY, CaseState.AWAITING_RESCRUTINY):
             a.append("start")
         if s in (CaseState.UNDER_SCRUTINY, CaseState.UNDER_RESCRUTINY):
-            a += ["record_finding", "edit_finding", "conclude_finding", "save_notes", "complete"]
+            # APH cl. 1.8(g): re-scrutiny verifies ONLY the deficiencies the scrutiny committee pointed out, so no new finding.
+            a += ["edit_finding", "conclude_finding", "save_notes", "complete"] if s == CaseState.UNDER_RESCRUTINY else ["record_finding", "edit_finding", "conclude_finding", "save_notes", "complete"]
             a.append("edit_notice" if has_draft else "prepare_notice")
             if has_draft:
                 a += ["submit_notice", "withdraw_notice"]

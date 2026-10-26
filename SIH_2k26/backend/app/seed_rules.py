@@ -41,9 +41,13 @@ MIRROR_URL = "https://www.iiqaccreditation.com/public/assets/aicte-process-handb
 CORRIGENDUM_URL = "https://teamleaseregtech.com/updates/article/52940/aicte-issued-the-corrigendum-regarding-the-approval-process-2026-27/"
 APH_TITLE = "AICTE Approval Process Handbook 2024-25 to 2026-27"
 AICTE = "All India Council for Technical Education (AICTE)"
-RETRIEVAL_NOTE = (
-    "The official PDF returned HTTP 502 when retrieval was attempted on 2026-10-26 (Phase 2 development). "
-    "The provisions were read through the project's curated reference pack, which cross-checked a non-authoritative mirror."
+APH_PDF_REF = "docs/sources/2025031399.pdf"
+APH_PDF_SHA256 = "153d54816f2cf11489218e239113544e8d49b73680009688baa7dc4880636051"
+# The official host was unreachable during development (HTTP 404/502/connection reset); the team then supplied the handbook PDF itself.
+VERIFIED_NOTE = (
+    f"Clause text read on 2026-10-27 in the official handbook PDF supplied by the team ({APH_PDF_REF}, SHA-256 {APH_PDF_SHA256[:16]}…, 231 pages, "
+    "'Approval Process Handbook 2024-25 to 2026-27'). It matched the project's curated summary. Verified for THIS edition only: "
+    "corrigenda issued after it (a December 2025 one is reported) have not been checked against a primary source."
 )
 
 # (key, name as listed in Table 2.3 per the reference pack, route stages)
@@ -71,6 +75,9 @@ STAGES = {
 def _src(db, author: User, **kw) -> RuleSource:
     existing = db.scalar(select(RuleSource).where(RuleSource.title == kw["title"]))
     if existing:
+        for k, v in kw.items():  # re-running the seed brings an existing development source up to date
+            if getattr(existing, k) != v:
+                setattr(existing, k, v)
         return existing
     s = RuleSource(created_by_id=author.id, **kw)
     db.add(s)
@@ -128,11 +135,12 @@ def main() -> int:
 
         # ---- sources ---------------------------------------------------------------------------
         aph2 = _src(db, author, title=f"{APH_TITLE} — Chapter II, clauses 2.23–2.24 and Table 2.3", issuing_authority=AICTE, url=OFFICIAL_URL,
-                    clause_ref="Ch. II cl. 2.23–2.24; Table 2.3", page_ref="printed pp. 29–30", verification_status=SourceVerification.SECONDARY_UNVERIFIED.value,
-                    applicability_notes=RETRIEVAL_NOTE + " Applicability to each academic year and the latest corrigenda are unverified.")
+                    clause_ref="Ch. II cl. 2.23–2.24; Table 2.3", page_ref="printed pp. 29–30", verification_status=SourceVerification.VERIFIED_OFFICIAL.value, document_ref=APH_PDF_REF, retrieved_date=date(2026, 10, 27),
+                    applicability_notes=VERIFIED_NOTE + " Table 2.3 is the table for Chapter II application types; AA = as applicable depending on the outcome of previous steps.")
         aph1 = _src(db, author, title=f"{APH_TITLE} — Chapter I, clauses 1.8–1.11", issuing_authority=AICTE, url=OFFICIAL_URL,
-                    clause_ref="Ch. I cl. 1.8–1.11", page_ref="printed pp. 7–10", verification_status=SourceVerification.SECONDARY_UNVERIFIED.value,
-                    applicability_notes=RETRIEVAL_NOTE + " Clause 1.11 and Chapter II clause 2.24 word the appeal trigger differently; no single appeal clock is encoded.")
+                    clause_ref="Ch. I cl. 1.8–1.11", page_ref="printed pp. 7–10", verification_status=SourceVerification.VERIFIED_OFFICIAL.value, document_ref=APH_PDF_REF, retrieved_date=date(2026, 10, 27),
+                    applicability_notes=VERIFIED_NOTE + " Cl. 1.8(f): deficiencies are communicated through the AICTE web portal; cl. 1.8(g): re-scrutiny verifies ONLY those deficiencies; no response period for them is stated. "
+                    "Clause 1.11 and Chapter II clause 2.24 word the appeal trigger differently; no single appeal clock is encoded.")
         pack = _src(db, author, title="Project reference pack: APH selected provisions (curated summary)", issuing_authority="SIH 26262 project team (not an AICTE publication)",
                     document_ref="docs/sources/AICTE_SIH26262_APH_Selected_Provisions_Reference.pdf", verification_status=SourceVerification.SECONDARY_UNVERIFIED.value,
                     applicability_notes="Curated summary prepared 2026-10-26. States that it is not the full APH and not an official publication; the official handbook controls in case of conflict.")
@@ -168,11 +176,16 @@ def main() -> int:
                 v = svc.create_rule_set(db, RuleSetCreateIn(key=off_key, title=f"{name} — Table 2.3 route (UNVERIFIED)", category_id=cat.id, classification=Classification.OFFICIAL), author, None)
                 svc.replace_draft_content(db, v.id, VersionContentIn(
                     academic_years=["2026-27"],
-                    change_summary="Route shape from Table 2.3 as summarised in the project reference pack. CHECKLIST GAP: the sources contain no verified document list, so none is invented. "
-                                   "Cannot be published until every source is verified against the official handbook and corrigenda.",
-                    source_ids=[aph2.id, pack.id],
+                    change_summary="Route shape from Table 2.3, checked against the official handbook PDF (2024-27 edition). CHECKLIST GAP: the document lists in Annexure-2 are not yet encoded, so none is invented. "
+                                   "Cannot be published until every linked source is verified and the post-2024 corrigenda are checked.",
+                    source_ids=[aph2.id, aph1.id, pack.id],
                     route=_stage_models(route, aph2.id, "Table 2.3"),
                     deadlines=[DeadlinePolicyIn(
+                        policy_key="deficiency-response-no-period", label="Response to deficiencies — the handbook states NO fixed period (cl. 1.8(b), (f), (g))",
+                        deadline_type="INTERNAL_SLA", trigger_event="deficiency_notice_issued", duration_value=None, duration_unit=None,
+                        pause_resume_note="Cl. 1.8(f): deficiencies are communicated through the web portal and the institution is expected to fulfil them for re-scrutiny; cl. 1.8(b): the Regulation Bureau informs the date and time of the (re-)scrutiny. "
+                                          "No number of days is stated, so none is set.", source_id=aph1.id, clause_ref="Ch. I cl. 1.8(b), (f), (g)"),
+                      DeadlinePolicyIn(
                         policy_key="appeal-window-ch2-cl-2-24", label="Appeal window per Ch. II cl. 2.24 — applicability to this category NOT confirmed",
                         deadline_type="STATUTORY", trigger_event="executive_committee_decision_uploaded", duration_value=7, duration_unit="days", calendar_convention=None,
                         pause_resume_note="Calendar convention and pause/resume are not established by the available sources.", source_id=aph2.id, clause_ref="Ch. II cl. 2.24")],
@@ -208,7 +221,7 @@ def main() -> int:
     print(f"Seeded {len(created)} item(s)." if created else "Catalogue already seeded; nothing changed.")
     for c in created:
         print(f"  {c}")
-    print("OFFICIAL-classified drafts remain unpublished by design (sources unverified; checklist gap).")
+    print("OFFICIAL-classified drafts remain unpublished by design (no checklist encoded; the project summary source is unverified; corrigenda unchecked).")
     return 0
 
 

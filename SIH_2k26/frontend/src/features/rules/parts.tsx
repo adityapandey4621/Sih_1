@@ -34,7 +34,7 @@ export function ReadinessPanel({ issues, status }: { issues: Issue[]; status: Ve
 }
 
 function Deadlines({ items }: { items: DeadlinePolicy[] }) {
-  if (!items.length) return <p className="note">No deadline policies are defined. Phase 2 only stores definitions; nothing is scheduled or enforced.</p>
+  if (!items.length) return <p className="note">No deadline policies are defined. Policies are definitions only; the reminder and deadline engine is not built, so nothing is scheduled or enforced.</p>
   return (
     <div className="table-wrap">
       <table className="table">

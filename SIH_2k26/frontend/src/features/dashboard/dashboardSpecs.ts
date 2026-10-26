@@ -204,7 +204,7 @@ export const DASHBOARDS: DashboardSpec[] = [
         title: 'Audit records',
         description: 'Sign-ins, access requests, invitations and account changes recorded so far.',
         emptyTitle: 'Open the audit log',
-        emptyBody: 'Phase 1 records authentication and administration events. Application events are added with the workflow.',
+        emptyBody: 'Sign-ins, administration, rule catalogue, application, document, scrutiny and notice events are recorded here. Later stages add theirs as they are built.',
         link: { label: 'View audit log', to: '/app/audit-log', permission: 'audit:read' },
       },
       { title: 'Monitoring', description: 'Deadline, SLA and compliance monitoring across cases.', ...none('monitoring data') },

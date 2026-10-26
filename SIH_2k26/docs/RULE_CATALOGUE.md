@@ -64,7 +64,8 @@ python -m app.seed_rules   # catalogue
 
 | Seeded item | Standing |
 |---|---|
-| 6 sources (APH Ch. I and II, the project reference pack, a mirror, a reported corrigendum) | `SECONDARY_UNVERIFIED` — the official PDF returned HTTP 502 on 2026-10-26; contents were taken from the project's curated pack, which says it is not authoritative |
+| 2 APH clause sources (Ch. I 1.8–1.11; Ch. II 2.23–2.24 and Table 2.3) | `VERIFIED_OFFICIAL` for the 2024-27 edition, read 2026-10-27 in the supplied official PDF (see `APH_VERIFICATION.md`); later corrigenda unchecked |
+| 4 other sources (the project reference pack, a mirror, a reported corrigendum, the demo source) | `SECONDARY_UNVERIFIED` / `DEMO_ONLY`; the pack and mirror are not authorities. Official drafts still cite the pack and have no checklist, so they cannot be published |
 | 5 categories named after the Table 2.3 rows in the pack | Names/applicability **not independently verified** |
 | 5 `aph-table-2-3-*` OFFICIAL-classified rule sets, each a **draft** | Route shapes from Table 2.3 only. **Checklist: GAP** (the sources contain no verified document list). An appeal-window policy citing Ch. II cl. 2.24 (7 days, calendar convention unspecified, applicability to the category **not confirmed**). Cannot be published |
 | 5 `demo-*` DEMO rule sets, each **published** through the real author → review → publish flow | **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES.** Invented checklist items labelled `[DEMO]`; no durations |

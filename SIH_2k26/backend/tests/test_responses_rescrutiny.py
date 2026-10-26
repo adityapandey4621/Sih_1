@@ -1,4 +1,4 @@
-"""Institution responses, corrected evidence, re-scrutiny and repeated notices (acceptance 17-27, 34)."""
+﻿"""Institution responses, corrected evidence, re-scrutiny and repeated notices (acceptance 17-27, 34)."""
 
 import json
 import uuid
@@ -414,9 +414,7 @@ def test_another_notice_can_follow_as_a_separate_linked_record_with_the_first_pr
     world.issue(n1["id"])
     start_rescrutiny(world, n1["id"])
     conclude(world, f["id"], "UNRESOLVED", "Still not shown.")
-    new = world.finding(visibility="ELIGIBLE_FOR_NOTICE", institution_text="The corrected letter lacks a signature.", requested_correction="Upload a signed copy.", item_key="doc-main")["findings"][-1]
-    assert new["round_number"] == 2
-    n2 = world.scrutiny.post(f"{world.case_url}/notices", {"finding_ids": [f["id"], new["id"]], "summary": "Two points remain."}).json()["notices"][-1]
+    n2 = world.scrutiny.post(f"{world.case_url}/notices", {"finding_ids": [f["id"]], "summary": "One point remains."}).json()["notices"][-1]
     assert n2["sequence"] == 2 and n2["previous_reference"] == world.case()["notices"][0]["reference"] and n2["round_number"] == 2
     n2 = world.submit_notice(n2)
     world.issue(n2["id"], key="second-notice-key")
@@ -470,6 +468,25 @@ def test_rescrutiny_is_not_an_automatic_pass_even_if_the_new_file_is_perfectly_c
     c = world.case()
     assert c["findings"][0]["state"] == "NOTICED" and c["queue"]["state"] == "UNDER_RESCRUTINY"
     assert world.scrutiny.post(f"{world.case_url}/complete", {"row_version": world.case_row().row_version, "summary": "Trying to finish without concluding"}).json()["code"] == "findings_pending"
+
+
+def test_rescrutiny_verifies_only_the_deficiencies_already_pointed_out_so_no_new_finding_can_be_recorded(world):
+    """APH 2024-27 Ch. I cl. 1.8(g): the Re-Scrutiny Committee verifies ONLY the deficiencies pointed out by the Scrutiny Committee."""
+    nid = issued(world)
+    start_rescrutiny(world, nid)
+    assert "record_finding" not in world.case()["allowed_actions"] and "conclude_finding" in world.case()["allowed_actions"]
+    r = world.scrutiny.post(f"{world.case_url}/findings", {"issue_type": "other", "description": "A brand new concern raised only at re-scrutiny"})
+    assert r.status_code == 409 and r.json()["code"] == "rescrutiny_scope" and "1.8(g)" in r.text
+    assert len(world.case()["findings"]) == 1
+
+
+def test_initial_scrutiny_still_allows_new_findings(world):
+    world.upload()
+    drain()
+    world.submit()
+    world.start()
+    assert "record_finding" in world.case()["allowed_actions"]
+    assert world.finding(visibility="INTERNAL_ONLY", description="Initial round").get("findings")
 
 
 def test_a_further_notice_is_refused_when_there_is_nothing_eligible_to_put_in_it(world):

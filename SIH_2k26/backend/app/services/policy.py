@@ -36,6 +36,11 @@ class PolicyResolution:
     def usable(self) -> bool:
         return self.state in (ResponsePolicyState.COMPUTED, ResponsePolicyState.DEMO_COMPUTED)
 
+    @property
+    def settled(self) -> bool:
+        """Nothing is left unresolved: either a usable duration, or a verified official source that states there is none."""
+        return self.usable or (self.state == ResponsePolicyState.NO_DURATION and bool(self.source) and self.source["verification_status"] == SourceVerification.VERIFIED_OFFICIAL.value)
+
     def due_at(self, issued_at: datetime) -> datetime | None:
         """Issue instant plus the stated period, counted as elapsed time (CALENDAR). The counting convention of the
         official text (whether the day of issue counts, cut-off times) is NOT verified; see docs/DECISIONS.md."""
@@ -71,6 +76,8 @@ def resolve_response_policy(config: dict, settings: Settings) -> PolicyResolutio
         source={"title": src["title"], "verification_status": src["verification_status"], "clause_ref": src.get("clause_ref")} if src else None,
     )
     if p.get("duration_value") is None:
+        if src and src["verification_status"] == SourceVerification.VERIFIED_OFFICIAL.value:
+            return PolicyResolution(ResponsePolicyState.NO_DURATION, "A verified official source states no fixed response period for this notice; the next scrutiny date is scheduled by the authority. No due date has been set.", **base)
         return PolicyResolution(ResponsePolicyState.NO_DURATION, "The policy exists but no response period is established by a verified source. No due date has been set.", **base)
     if p.get("calendar_convention") != "CALENDAR":
         why = "working days (there is no verified calendar to count them with)" if p.get("calendar_convention") == "WORKING" else "an unstated counting convention"
