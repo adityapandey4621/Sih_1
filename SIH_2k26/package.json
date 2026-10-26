@@ -1,0 +1,11 @@
+{
+  "name": "sih-2k26-root",
+  "private": true,
+  "description": "Root workspace scripts for AICTE approval workflow automation",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend run test",
+    "typecheck": "npm --prefix frontend run typecheck"
+  }
+}

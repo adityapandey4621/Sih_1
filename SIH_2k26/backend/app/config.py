@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     login_ip_max_failures: int = 30
     login_window_minutes: int = 15
 
+    # Private attachment storage (never served statically). Keys are generated, never user-supplied.
+    storage_dir: str = "storage"
+    max_upload_mb: int = 10
+
+    # DEMO ONLY configuration may be published and selected only when this is true. Forced off in production.
+    allow_demo_rules: bool = True
+
     # Dev-only: used by the seed script. Never used in production.
     seed_password: str = ""
 
@@ -37,6 +44,14 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def demo_rules_enabled(self) -> bool:
+        return self.allow_demo_rules and not self.is_production
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
 
 
 @lru_cache

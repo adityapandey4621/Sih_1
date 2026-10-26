@@ -116,3 +116,7 @@ class AuditEvent(Base):
     target_id: Mapped[str | None] = mapped_column(String(64))
     ip_address: Mapped[str | None] = mapped_column(String(64))
     detail: Mapped[dict | None] = mapped_column(JSON)
+
+
+# Register Phase 2 tables on Base.metadata (these modules import names defined above).
+from app import guards, models_applications, models_catalogue  # noqa: E402,F401

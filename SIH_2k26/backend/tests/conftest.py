@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -7,6 +8,8 @@ _tmp = Path(tempfile.mkdtemp(prefix="sih-tests-"))
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{(_tmp / 'test.db').as_posix()}"
 os.environ["SEED_PASSWORD"] = ""
+os.environ["STORAGE_DIR"] = str(_tmp / "storage")
+os.environ["ALLOW_DEMO_RULES"] = "true"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -25,6 +28,7 @@ PASSWORD = "correct horse battery staple"
 def _fresh_db():
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    shutil.rmtree(os.environ["STORAGE_DIR"], ignore_errors=True)  # attachments are per-test too
     yield
 
 
@@ -45,6 +49,18 @@ class Api:
 
     def post(self, path: str, json: dict | None = None, **kw):
         return self.http.post(path, json=json, headers=self._csrf(), **kw)
+
+    def put(self, path: str, json: dict | None = None, **kw):
+        return self.http.put(path, json=json, headers=self._csrf(), **kw)
+
+    def patch(self, path: str, json: dict | None = None, **kw):
+        return self.http.patch(path, json=json, headers=self._csrf(), **kw)
+
+    def delete(self, path: str, **kw):
+        return self.http.delete(path, headers=self._csrf(), **kw)
+
+    def upload(self, path: str, item_key: str, filename: str, content: bytes, content_type: str = "application/pdf"):
+        return self.http.post(path, data={"item_key": item_key}, files={"file": (filename, content, content_type)}, headers=self._csrf())
 
     def login(self, email: str, password: str = PASSWORD):
         return self.post("/api/auth/login", {"email": email, "password": password})

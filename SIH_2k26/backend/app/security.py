@@ -1,12 +1,15 @@
 import hashlib
 import hmac
+import os
 import secrets
 from datetime import UTC, datetime
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 
-_hasher = PasswordHasher()  # Argon2id with library defaults
+# Argon2id with library defaults. The test environment alone uses minimal cost so the suite stays fast;
+# the algorithm (Argon2id) and everything else is identical.
+_hasher = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1) if os.environ.get("ENVIRONMENT") == "test" else PasswordHasher()
 
 PASSWORD_MIN_LENGTH = 12
 PASSWORD_MAX_LENGTH = 128

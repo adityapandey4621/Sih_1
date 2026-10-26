@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from app.rbac import ROLE_PERMISSIONS, Permission, Role
 
@@ -14,14 +14,18 @@ def test_every_role_has_a_permission_entry():
     assert set(ROLE_PERMISSIONS) == set(Role)
 
 
-def test_rules_admin_has_no_decision_or_administration_permissions():
-    perms = ROLE_PERMISSIONS[Role.RULES_ADMIN]
-    assert perms == {Permission.DASHBOARD_RULES}
+def test_rules_author_and_approver_are_separate_and_have_no_decision_or_administration_permissions():
+    author = ROLE_PERMISSIONS[Role.RULES_ADMIN]
+    approver = ROLE_PERMISSIONS[Role.RULES_APPROVER]
+    assert author == {Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_EDIT}
+    assert approver == {Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_APPROVE}
+    assert Permission.RULES_APPROVE not in author and Permission.RULES_EDIT not in approver
 
 
 def test_auditor_is_read_only():
     perms = ROLE_PERMISSIONS[Role.AUDITOR]
-    assert perms == {Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ}
+    assert perms == {Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ}
+    assert not {p for p in perms if p.value.endswith((":edit", ":approve", ":create", ":submit"))}
 
 
 def test_each_role_has_exactly_one_dashboard_permission():

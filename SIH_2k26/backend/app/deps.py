@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import audit
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.models import AuthSession, User, utcnow
@@ -76,19 +77,29 @@ def get_current_user(current: CurrentUser | None = Depends(get_optional_user)) -
     return current
 
 
+def _deny(request: Request, db: Session, current: CurrentUser, needed: str) -> None:
+    """Record the refusal (who, what, where), then answer 403. Never includes request bodies."""
+    audit.record(
+        db, "security.permission_denied", request=request, actor=current.user,
+        detail={"required": needed, "method": request.method, "path": request.url.path},
+    )
+    db.commit()
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this resource.")
+
+
 def require_permission(permission: Permission):
-    def checker(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    def checker(request: Request, current: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> CurrentUser:
         if permission not in current.permissions:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this resource.")
+            _deny(request, db, current, permission.value)
         return current
 
     return checker
 
 
 def require_any_permission(*permissions: Permission):
-    def checker(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    def checker(request: Request, current: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> CurrentUser:
         if not any(p in current.permissions for p in permissions):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "You do not have access to this resource.")
+            _deny(request, db, current, "|".join(p.value for p in permissions))
         return current
 
     return checker
