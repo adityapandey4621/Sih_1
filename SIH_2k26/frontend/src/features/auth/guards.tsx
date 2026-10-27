@@ -32,3 +32,9 @@ export function RequirePermission({ permission, children }: { permission: string
   const { can } = useAuth()
   return can(permission) ? <>{children}</> : <AccessDenied />
 }
+
+/** Passes when the user holds at least one of the listed permissions (the server still decides what each one may see). */
+export function RequireAnyPermission({ permissions, children }: { permissions: string[]; children: ReactNode }) {
+  const { can } = useAuth()
+  return permissions.some((p) => can(p)) ? <>{children}</> : <AccessDenied />
+}

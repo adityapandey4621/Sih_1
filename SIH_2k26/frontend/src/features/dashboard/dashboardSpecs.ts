@@ -1,6 +1,7 @@
 import {
   Building2,
   ClipboardCheck,
+  FileCheck2,
   Gavel,
   Landmark,
   MapPinned,
@@ -71,7 +72,13 @@ export const DASHBOARDS: DashboardSpec[] = [
         emptyBody: 'If scrutiny needs something from your institution, a formal notice appears under Notices with what is requested and any response deadline.',
         link: { label: 'Open notices', to: '/app/notices', permission: 'notice:read_own' },
       },
-      { title: 'Notifications and deadlines', description: 'Reminders and due dates that apply to your institution.', ...none('notifications') },
+      {
+        title: 'Notifications and deadlines',
+        description: 'Reminders and due dates that apply to your institution.',
+        emptyTitle: 'Open your deadlines',
+        emptyBody: 'Response periods, appeal windows, obligation dates and document expiry dates are listed with their source. A date appears only where a verified rule or an authorised decision states one.',
+        link: { label: 'Open deadlines', to: '/app/post-approval?tab=deadlines', permission: 'compliance:read_own' },
+      },
       {
         title: 'Decisions and appeals',
         description: 'Outcomes issued on your applications, and an appeal where the rules allow one.',
@@ -79,7 +86,13 @@ export const DASHBOARDS: DashboardSpec[] = [
         emptyBody: 'An issued outcome, its reasons and any appeal you may make appear on the application itself, with the period that applies.',
         link: { label: 'Open applications', to: '/app/applications', permission: 'application:read_own' },
       },
-      { title: 'Compliance obligations', description: 'Undertakings and continuing compliance duties.', ...none('obligations') },
+      {
+        title: 'Compliance obligations',
+        description: 'Undertakings and continuing compliance duties that follow a decision.',
+        emptyTitle: 'Open your obligations',
+        emptyBody: 'Each obligation shows the condition, the evidence required and its verification status. Submitting evidence is not verification.',
+        link: { label: 'Open obligations', to: '/app/post-approval', permission: 'compliance:read_own' },
+      },
     ],
   },
   {
@@ -166,6 +179,16 @@ export const DASHBOARDS: DashboardSpec[] = [
       { title: 'Hearing and review status', description: 'Progress of each appeal.', ...none('review records') },
       { title: 'Pending recommendations and outcomes', description: 'Recommendations awaiting finalisation and recorded outcomes.', ...none('outcomes') },
     ],
+  },
+  {
+    key: 'post-approval',
+    permission: 'dashboard:compliance',
+    navLabel: 'Compliance and validity',
+    title: 'Compliance, validity and deadlines',
+    description: 'Obligations that follow issued decisions, document expiry dates and the deadlines that apply.',
+    icon: FileCheck2,
+    note: 'A role with compliance access sees the obligations queue here instead of this shell. Evidence is verified by a person; nothing here revokes an approval or imposes a penalty.',
+    sections: [{ title: 'Obligations and validity', description: 'Within your scope.', ...none('compliance access') }],
   },
   {
     key: 'rules',

@@ -61,6 +61,7 @@ def _insert(db: Session, row: Notification) -> None:
 def notify(
     db: Session, event: NotificationEvent, recipients: list[User], *, kind: str, scope_key: str, title: str, body: str, link: str | None,
     application_id: uuid.UUID | None = None, case_id: uuid.UUID | None = None, notice_id: uuid.UUID | None = None, committee_case_id: uuid.UUID | None = None,
+    clock_id: uuid.UUID | None = None, obligation_id: uuid.UUID | None = None, policy_ref: dict | None = None,
 ) -> int:
     """Create one notification per recipient. Returns how many were newly created."""
     created = 0
@@ -70,7 +71,7 @@ def notify(
             continue
         row = Notification(
             event_type=event.value, dedupe_key=key, recipient_user_id=user.id, recipient_kind=kind, application_id=application_id, case_id=case_id,
-            notice_id=notice_id, committee_case_id=committee_case_id, title=title[:200], body=body[:600], link=link,
+            notice_id=notice_id, committee_case_id=committee_case_id, clock_id=clock_id, obligation_id=obligation_id, policy_ref=policy_ref, title=title[:200], body=body[:600], link=link,
         )
         try:
             # SAVEPOINT on PostgreSQL (the production database): a failed notification rolls back to here and nothing else.

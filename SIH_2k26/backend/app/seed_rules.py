@@ -104,7 +104,31 @@ DEMO_FIELDS_A = [
 ]
 DEMO_FIELDS_B = [
     {"field_key": "institution_name", "label": "Institution name", "kind": "text", "anchors": ["Name of the Institution", "Institution Name"], "compare_group": "institution_name", "required": False},
+    # Phase 7 demonstration: a date that matters after approval (think of a lease). Every date still needs a person's confirmation before any alert depends on it.
+    {"field_key": "valid_until", "label": "Valid until", "kind": "date", "anchors": ["Valid Until", "Lease Expiry", "Valid Till"], "required": False, "validity": True},
 ]
+
+
+def _demo_deadlines(src) -> list[DeadlinePolicyIn]:
+    """DEMO ONLY service levels and alert schedules (Phase 7). Every number below is invented for demonstration; none is an AICTE requirement."""
+    mk = lambda **kw: DeadlinePolicyIn(source_id=src, clause_ref="DEMO ONLY", calendar_convention="CALENDAR", **kw)  # noqa: E731
+    return [
+        DeadlinePolicyIn(policy_key="demo-response-window", label="[DEMO] Response window — duration deliberately not set", deadline_type="INTERNAL_SLA", trigger_event="deficiency_notice_issued", source_id=src, clause_ref="DEMO ONLY"),
+        mk(policy_key="demo-appeal-window", label="[DEMO] Appeal window — 7 calendar days, invented for demonstration", deadline_type="INTERNAL_SLA", trigger_event="executive_committee_decision_uploaded", duration_value=7, duration_unit="days",
+           escalation={"alerts": {"pre_due_hours": [48, 24], "at_due": True}}),
+        mk(policy_key="demo-scrutiny-sla", label="[DEMO] Officer-stage service level for the first scrutiny round — 5 days", deadline_type="INTERNAL_SLA", trigger_event="scrutiny_case_opened", duration_value=5, duration_unit="days",
+           escalation={"alerts": {"pre_due_hours": [24], "at_due": True, "overdue_hours": [24]}, "pause": {"allowed": True, "reasons": ["awaiting_clarification"]}, "escalate_to": ["scrutiny_coordinator"]}),
+        mk(policy_key="demo-evc-scheduling-sla", label="[DEMO] EVC scheduling service level — 7 days", deadline_type="INTERNAL_SLA", trigger_event="evc_stage_activated", duration_value=7, duration_unit="days",
+           escalation={"alerts": {"pre_due_hours": [24], "overdue_hours": [24]}, "escalate_to": ["evc_coordinator"]}),
+        mk(policy_key="demo-decision-sla", label="[DEMO] Decision-stage service level — 10 days", deadline_type="INTERNAL_SLA", trigger_event="decision_case_opened", duration_value=10, duration_unit="days",
+           escalation={"alerts": {"pre_due_hours": [48], "overdue_hours": [24]}, "escalate_to": ["regulation_bureau"]}),
+        mk(policy_key="demo-compliance-30d", label="[DEMO] Compliance obligation — 30 days from the day it is recorded", deadline_type="INTERNAL_SLA", trigger_event="compliance_obligation_defined", duration_value=30, duration_unit="days",
+           escalation={"alerts": {"pre_due_hours": [168, 24], "at_due": True, "overdue_hours": [24]}, "escalate_to": ["regulation_bureau"]}),
+        DeadlinePolicyIn(policy_key="demo-compliance-alerts", label="[DEMO] Alert schedule for a date specified in a decision", deadline_type="INTERNAL_SLA", trigger_event="compliance_obligation_due", source_id=src, clause_ref="DEMO ONLY",
+                         escalation={"alerts": {"pre_due_hours": [168, 24], "at_due": True, "overdue_hours": [24]}, "escalate_to": ["regulation_bureau"]}),
+        DeadlinePolicyIn(policy_key="demo-validity-alerts", label="[DEMO] Alert schedule for document expiry dates", deadline_type="INTERNAL_SLA", trigger_event="document_expiry", source_id=src, clause_ref="DEMO ONLY",
+                         escalation={"alerts": {"pre_due_hours": [720, 168, 24], "at_due": True, "overdue_hours": [24]}, "escalate_to": ["compliance_officer"]}),
+    ]
 
 
 def _demo_checklist(demo_src) -> list[ChecklistItemIn]:
@@ -201,10 +225,7 @@ def main() -> int:
                     academic_years=["2026-27"], change_summary=f"{DEMO_BANNER}. Invented checklist for demonstrating application intake.",
                     source_ids=[demo.id], checklist=_demo_checklist(demo.id),
                     route=_stage_models(route, demo.id, "DEMO ONLY"),
-                    deadlines=[DeadlinePolicyIn(policy_key="demo-response-window", label="[DEMO] Response window — duration deliberately not set", deadline_type="INTERNAL_SLA",
-                                                trigger_event="deficiency_notice_issued", source_id=demo.id, clause_ref="DEMO ONLY"),
-                               DeadlinePolicyIn(policy_key="demo-appeal-window", label="[DEMO] Appeal window — 7 calendar days, invented for demonstration", deadline_type="INTERNAL_SLA",
-                                                trigger_event="executive_committee_decision_uploaded", duration_value=7, duration_unit="days", calendar_convention="CALENDAR", source_id=demo.id, clause_ref="DEMO ONLY")],
+                    deadlines=_demo_deadlines(demo.id),
                     row_version=v.row_version), author, None)
                 v = svc.submit_for_review(db, v.id, v.row_version, "DEMO ONLY", author, None, settings)
                 svc.publish(db, v.id, False, "DEMO ONLY — published for development use", approver, None, settings)

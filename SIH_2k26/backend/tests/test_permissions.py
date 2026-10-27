@@ -24,7 +24,7 @@ def test_rules_author_and_approver_are_separate_and_have_no_decision_or_administ
 
 def test_auditor_is_read_only():
     perms = ROLE_PERMISSIONS[Role.AUDITOR]
-    assert perms == {Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ}
+    assert perms == {Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ, Permission.INTEGRATION_READ}  # reading the integration status is oversight; managing it is not granted
     assert not {p for p in perms if p.value.endswith((":edit", ":approve", ":create", ":submit"))}
 
 

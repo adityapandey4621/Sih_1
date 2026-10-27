@@ -25,6 +25,7 @@ class Role(StrEnum):
     SAC_COORDINATOR = "sac_coordinator"  # arranges the SAC review of an appeal (application capability)
     SAC_MEMBER = "sac_member"
     REGULATION_BUREAU = "regulation_bureau"  # records Bureau observations, issues the official outcome (application capability, not a claimed AICTE designation)
+    COMPLIANCE_OFFICER = "compliance_officer"  # verifies compliance evidence and document-validity dates (application capability, not an AICTE designation)
     COUNCIL_MEMBER = "council_member"  # records Council ratification and Council decisions on appeals (application capability)
     RULES_ADMIN = "rules_admin"
     RULES_APPROVER = "rules_approver"
@@ -40,6 +41,7 @@ class Permission(StrEnum):
     DASHBOARD_SHC = "dashboard:shc"
     DASHBOARD_EXECUTIVE = "dashboard:executive"
     DASHBOARD_APPEALS = "dashboard:appeals"
+    DASHBOARD_COMPLIANCE = "dashboard:compliance"
     DASHBOARD_RULES = "dashboard:rules"
     DASHBOARD_AUDIT = "dashboard:audit"
     DASHBOARD_ADMIN = "dashboard:admin"
@@ -90,6 +92,17 @@ class Permission(StrEnum):
     SAC_COORDINATE = "sac:coordinate"
     SAC_WORK = "sac:work"
 
+    # Phase 7 - compliance, document validity and deadlines. Uploading evidence and verifying it are different permissions held by different roles.
+    COMPLIANCE_QUEUE = "compliance:queue"  # see obligations and validity items within one's scope
+    COMPLIANCE_DEFINE = "compliance:define"  # Regulation Bureau: record an obligation from an issued decision, assign its verifier, withdraw one recorded in error
+    COMPLIANCE_VERIFY = "compliance:verify"  # compliance officer: verify evidence, request a permitted correction, record a not-met outcome, verify validity dates
+    COMPLIANCE_READ_OWN = "compliance:read_own"  # institution: its own obligations, validity items and deadlines
+    COMPLIANCE_SUBMIT = "compliance:submit"  # institution: submit evidence and renewals for its own obligations
+    CLOCK_READ = "clock:read"  # officials: deadline clocks of the kinds their role covers
+    INTEGRATION_READ = "integration:read"  # see the state of the integration boundary: configuration summary, sync records, call log (no secrets, no bodies)
+    INTEGRATION_MANAGE = "integration:manage"  # Regulation Bureau: take a FAILED / RECONCILIATION_REQUIRED sync back to a fresh bounded set of attempts
+    CLOCK_MANAGE = "clock:manage"  # Regulation Bureau: pause / resume a clock, only where its policy permits
+
     # Phase 2 — rule catalogue
     RULES_READ = "rules:read"
     RULES_EDIT = "rules:edit"  # author: create/edit drafts, submit for review
@@ -111,6 +124,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.COMMITTEE_STATUS_OWN,
             Permission.DECISION_READ_OWN,
             Permission.APPEAL_SUBMIT,
+            Permission.COMPLIANCE_READ_OWN,
+            Permission.COMPLIANCE_SUBMIT,
             Permission.NOTIFICATIONS_READ,
         }
     ),
@@ -125,7 +140,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.SCRUTINY_COORDINATOR: frozenset(
         {
             Permission.DASHBOARD_SCRUTINY, Permission.SCRUTINY_QUEUE, Permission.SCRUTINY_ASSIGN,
-            Permission.SCRUTINY_ROUTE_DETERMINE, Permission.NOTIFICATIONS_READ,
+            Permission.SCRUTINY_ROUTE_DETERMINE, Permission.CLOCK_READ, Permission.NOTIFICATIONS_READ,
         }
     ),
     # Inspects a prepared notice (and the evidence behind it) before deciding to issue it.
@@ -136,24 +151,28 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
         }
     ),
     # Committee coordinators arrange the process; members work only the cases they are assigned. Neither can decide anything.
-    Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION, Permission.EVC_QUEUE, Permission.EVC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.EVC_COORDINATOR: frozenset({Permission.DASHBOARD_EVC_COORDINATION, Permission.EVC_QUEUE, Permission.EVC_COORDINATE, Permission.EVIDENCE_READ, Permission.CLOCK_READ, Permission.NOTIFICATIONS_READ}),
     Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER, Permission.EVC_QUEUE, Permission.EVC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.SHC_COORDINATOR: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.EXECUTIVE_COMMITTEE: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.DECISION_RECORD, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
-    Role.REGULATION_BUREAU: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.DECISION_OBSERVE, Permission.DECISION_ISSUE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.REGULATION_BUREAU: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.DECISION_OBSERVE, Permission.DECISION_ISSUE, Permission.EVIDENCE_READ,
+                                   Permission.COMPLIANCE_QUEUE, Permission.COMPLIANCE_DEFINE, Permission.CLOCK_READ, Permission.CLOCK_MANAGE, Permission.INTEGRATION_READ, Permission.INTEGRATION_MANAGE, Permission.NOTIFICATIONS_READ}),
+    # Verifies evidence and dates; sees only what is assigned or reviewable. No decision, no definition of obligations, no administration.
+    Role.COMPLIANCE_OFFICER: frozenset({Permission.DASHBOARD_COMPLIANCE, Permission.COMPLIANCE_QUEUE, Permission.COMPLIANCE_VERIFY, Permission.CLOCK_READ, Permission.NOTIFICATIONS_READ}),
     Role.COUNCIL_MEMBER: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.COUNCIL_RECORD, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
-    Role.SAC_COORDINATOR: frozenset({Permission.DASHBOARD_APPEALS, Permission.SAC_QUEUE, Permission.SAC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.SAC_COORDINATOR: frozenset({Permission.DASHBOARD_APPEALS, Permission.SAC_QUEUE, Permission.SAC_COORDINATE, Permission.EVIDENCE_READ, Permission.CLOCK_READ, Permission.NOTIFICATIONS_READ}),
     Role.SAC_MEMBER: frozenset({Permission.DASHBOARD_APPEALS, Permission.SAC_QUEUE, Permission.SAC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.RULES_ADMIN: frozenset({Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_EDIT}),
     Role.RULES_APPROVER: frozenset({Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_APPROVE}),
-    Role.AUDITOR: frozenset({Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ}),
+    Role.AUDITOR: frozenset({Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ, Permission.INTEGRATION_READ}),
     Role.PLATFORM_ADMIN: frozenset(
         {
             Permission.DASHBOARD_ADMIN,
             Permission.ADMIN_ACCESS_REQUESTS,
             Permission.ADMIN_USERS,
             Permission.AUDIT_READ,
+            Permission.INTEGRATION_READ,
         }
     ),
 }
@@ -171,6 +190,7 @@ ROLE_LABELS: dict[Role, str] = {
     Role.SAC_COORDINATOR: "SAC coordinator",
     Role.SAC_MEMBER: "SAC member",
     Role.REGULATION_BUREAU: "Regulation Bureau",
+    Role.COMPLIANCE_OFFICER: "Compliance officer",
     Role.COUNCIL_MEMBER: "Council member",
     Role.RULES_ADMIN: "Rules administrator",
     Role.RULES_APPROVER: "Rules approver",

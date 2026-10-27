@@ -175,8 +175,8 @@ def test_a_failure_while_completing_a_stage_leaves_no_false_completed_state(monk
         raise RuntimeError("the database failed during the route step")
 
     monkeypatch.setattr(stages, "advance_from_case", boom)
-    with pytest.raises(RuntimeError):
-        c.evc_coord.post(f"{c.url('EVC')}/complete", {"summary": "Completing the stage.", "row_version": c.rv("EVC")})
+    r = c.evc_coord.post(f"{c.url('EVC')}/complete", {"summary": "Completing the stage.", "row_version": c.rv("EVC")})
+    assert r.status_code == 500 and r.json()["code"] == "internal_error" and "route step" not in r.text  # a generic answer, never the exception text
     monkeypatch.undo()
     assert c.case("EVC")["state"] == "REPORT_SUBMITTED" and c.case("EVC")["completed_at"] is None
     with SessionLocal() as db:
@@ -198,8 +198,8 @@ def test_a_failure_while_activating_a_stage_rolls_back_the_scrutiny_completion_w
         raise RuntimeError("activation failed")
 
     monkeypatch.setattr(stages, "activate", boom)
-    with pytest.raises(RuntimeError):
-        c.w.scrutiny.post(f"{c.w.case_url}/complete", {"row_version": c.w.case_row().row_version, "summary": "Completing scrutiny."})
+    r = c.w.scrutiny.post(f"{c.w.case_url}/complete", {"row_version": c.w.case_row().row_version, "summary": "Completing scrutiny."})
+    assert r.status_code == 500 and r.json()["code"] == "internal_error" and "activation failed" not in r.text
     monkeypatch.undo()
     with SessionLocal() as db:
         assert db.scalar(select(ScrutinyCase.state)) == "UNDER_SCRUTINY"  # not half-completed with a hand-off that nothing acted on
@@ -214,8 +214,7 @@ def test_a_failed_selection_request_write_leaves_the_case_unchanged(monkeypatch)
         raise RuntimeError("write failed")
 
     monkeypatch.setattr(ctexts, "selection_requested", boom)
-    with pytest.raises(RuntimeError):
-        c.evc_select()
+    c.evc_select(expect=500)  # a generic 500; nothing was left half-written
     monkeypatch.undo()
     assert c.case("EVC")["state"] == "SELECTION_PENDING"
     with SessionLocal() as db:

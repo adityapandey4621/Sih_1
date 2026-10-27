@@ -5,5 +5,11 @@ __pycache__
 *.pyc
 .pytest_cache
 .env
+.env.*
+!.env.example
 *.db
 backend/storage/
+backups/
+# Secrets live only on the server; only the README that explains them is tracked
+secrets/*
+!secrets/README.md

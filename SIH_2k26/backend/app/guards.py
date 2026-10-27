@@ -9,8 +9,12 @@ careful service code — they catch the mistakes the services are most likely to
 from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
+from app.models import AuditEvent
 from app.models_applications import Application, ApplicationDocument
 from app.models_catalogue import ChecklistItem, DeadlinePolicy, RouteStage, RuleSource, RuleVersion, RuleVersionSource
+from app.models_clocks import Clock, ClockEvent, ClockSegment
+from app.models_integration import IntegrationLog
+from app.models_compliance import Obligation, ObligationDocument, ObligationEvent, ObligationReview, ObligationSubmission, ValidityItem, ValidityVersion
 from app.models_decisions import Appeal, AppealDocument, BureauObservation, CouncilDecision, DecisionCase, EcDecision, OfficialIssuance
 from app.models_committee import (
     CommitteeCase,
@@ -156,6 +160,41 @@ def _guard(session: Session, flush_context, instances) -> None:  # noqa: ANN001
         elif isinstance(obj, Appeal):
             if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("grounds", "eligibility", "against_decision_id", "decision_case_id", "submitted_by_id", "submitted_at", "application_id"))):
                 raise ImmutableRecordError("A submitted appeal's grounds and eligibility record cannot be changed.")
+
+        # ---- Phase 7: clocks, obligations, validity ----
+        elif isinstance(obj, Clock):
+            # A clock's trigger, start, ORIGINAL due date, kind and policy are fixed when it is created. Status and approved pause time move through the clock service.
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("kind", "deadline_type", "subject_type", "subject_id", "policy_key", "trigger_event", "trigger_at", "start_at", "due_at", "policy_snapshot", "rule_version_id", "application_id", "institution_id"))):
+                raise ImmutableRecordError("A deadline clock's trigger, due date and policy cannot be changed. Only an approved pause (where its policy allows) moves the effective date.")
+
+        elif isinstance(obj, ClockSegment):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("clock_id", "paused_at", "reason", "reference", "paused_by_id", "permitted_by"))):
+                raise ImmutableRecordError("A recorded pause cannot be rewritten.")
+
+        elif isinstance(obj, ClockEvent | ObligationEvent | ObligationSubmission | ObligationDocument | ObligationReview | IntegrationLog | AuditEvent):
+            if obj not in session.new:
+                raise ImmutableRecordError("Evidence, reviews and history records are append-only.")
+
+        elif isinstance(obj, Obligation):
+            # The condition, its source decision and its due date are what was recorded. Status moves only through the compare-and-set transition.
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in (
+                    "condition_text", "condition_ref", "required_evidence", "decision_id", "council_decision_id", "decision_case_id", "application_id", "institution_id", "rule_version_id",
+                    "due_basis", "due_at", "due_authority", "due_policy", "defined_by_id", "defined_at", "reference", "status"))):
+                raise ImmutableRecordError("A recorded obligation's condition, source decision and due date cannot be changed; its status moves only through the workflow.")
+
+        elif isinstance(obj, ValidityItem):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("application_id", "institution_id", "item_key", "field_key", "rule_version_id"))):
+                raise ImmutableRecordError("A tracked document's identity cannot be changed.")
+
+        elif isinstance(obj, ValidityVersion):
+            # The source of a date (document, page, extracted value, uploaded file) never changes. Review columns are written once, by a person.
+            if obj not in session.new:
+                if obj in session.deleted or any(_changed(obj, f) for f in (
+                        "item_id", "version_number", "source", "value_date", "raw_value", "source_document_id", "source_document_version", "source_page", "source_method",
+                        "source_confidence", "source_evidence", "storage_key", "sha256", "uploaded_by_id")):
+                    raise ImmutableRecordError("The source of a recorded date cannot be changed.")
+                if _original(obj, "status") in ("VERIFIED", "REJECTED", "SUPERSEDED") and any(_changed(obj, f) for f in ("verified_date", "verified_by_id", "verified_at", "review_reason")):
+                    raise ImmutableRecordError("A recorded review of a date cannot be changed.")
 
         # ---- Phase 5: committee records ----
         elif isinstance(obj, CommitteeEventRow | ShcProceeding):

@@ -354,6 +354,9 @@ class Notification(Base):
     case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scrutiny_cases.id"))
     notice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("deficiency_notices.id"))
     committee_case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("committee_cases.id"))  # Phase 5: the EVC / SHC case it concerns
+    clock_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clocks.id"))  # Phase 7: the deadline clock an alert concerns
+    obligation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("obligations.id"))  # Phase 7: the compliance obligation it concerns
+    policy_ref: Mapped[dict | None] = mapped_column(JSON)  # Phase 7: the deadline policy version an alert was raised under
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(String(600))  # never contains internal reviewer notes
     link: Mapped[str | None] = mapped_column(String(200))  # in-app path

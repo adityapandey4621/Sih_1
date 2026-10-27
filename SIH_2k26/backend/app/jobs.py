@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -52,7 +53,18 @@ def enqueue_cross_check(db: Session, application_id: uuid.UUID, settings: Settin
         select(ProcessingJob.id).where(ProcessingJob.application_id == application_id, ProcessingJob.job_type == JobType.CROSS_CHECK.value, ProcessingJob.status.in_(_WAITING)).limit(1)
     )
     if waiting is None:
-        db.add(ProcessingJob(job_type=JobType.CROSS_CHECK.value, application_id=application_id, status=JobStatus.QUEUED.value, max_attempts=settings.job_max_attempts, run_after=now or utcnow(), processor_version=PROCESSOR_VERSION))
+        job = ProcessingJob(job_type=JobType.CROSS_CHECK.value, application_id=application_id, status=JobStatus.QUEUED.value, max_attempts=settings.job_max_attempts, run_after=now or utcnow(), processor_version=PROCESSOR_VERSION)
+        if db.bind.dialect.name != "postgresql":
+            db.add(job)
+            return
+        try:
+            # Two uploads for one application at the same moment both see "nothing waiting"; the partial unique index lets only one insert win. The loser must not fail
+            # its upload: "a cross-check is already waiting" is exactly the coalesced outcome. (Found by the browser journey, which uploads two documents at once.)
+            with db.begin_nested():
+                db.add(job)
+                db.flush()
+        except IntegrityError:
+            pass
 
 
 def cancel_waiting_for_documents(db: Session, document_ids: list[uuid.UUID], reason: str) -> int:

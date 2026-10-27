@@ -137,7 +137,7 @@ export function AppShell() {
           </button>
         </div>
         <SideNav items={items} onNavigate={() => setDrawer(false)} />
-        <p className="shell__build">Phase 6 — scrutiny, notices, expert visits (EVC), SHC compliance / hearings, Executive Committee decisions, Council steps and SAC appeals. Post-approval compliance and the SLA engine are not built yet.</p>
+        <p className="shell__build">Phases 1–8 — scrutiny, notices, expert visits (EVC), SHC compliance / hearings, Phase 6 decisions and appeals, Phase 7 obligations, document validity, deadlines and alerts, Phase 8 integration boundary. The AICTE integration is a mock / demonstration only and is unverified.</p>
       </aside>
       {drawer && <div className="shell__scrim" onClick={() => setDrawer(false)} aria-hidden="true" />}
 

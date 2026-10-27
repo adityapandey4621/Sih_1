@@ -232,7 +232,8 @@ def test_document_processing_and_evidence_endpoints_cannot_issue_notices_or_deci
 
     all_paths = list(fastapi_app.openapi()["paths"])
     # `/api/decisions/...` is the Phase 6 decision workspace: its read-only evidence view sits behind decision:queue (test_decision_stage covers it); it records nothing
-    evidence = [p.lower() for p in all_paths if (p.startswith("/api/documents") or p.endswith("/evidence") or re.search(r"^/api/applications/\{[a-z_]+\}/documents", p)) and not p.startswith("/api/decisions/")]
+    # `/api/post-approval/...` (Phase 7) is the institution's own submission of evidence for an obligation, a different workflow whose every outcome needs a human verifier (test_compliance covers it)
+    evidence = [p.lower() for p in all_paths if (p.startswith("/api/documents") or p.endswith("/evidence") or re.search(r"^/api/applications/\{[a-z_]+\}/documents", p)) and not p.startswith(("/api/decisions/", "/api/post-approval/"))]
     assert evidence and not [p for p in evidence if re.search(r"deficien|notice|approv|reject|decision|verif|accept", p)]
     # the only issuing endpoints are the explicit, permission-gated ones: a deficiency notice (Phase 4) and a recorded decision outcome (Phase 6); neither is reachable from processing
     assert sorted(p for p in all_paths if p.endswith("/issue")) == ["/api/decisions/cases/{case_id}/issue", "/api/scrutiny/notices/{notice_id}/issue"]

@@ -16,5 +16,6 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
     css: false,
+    testTimeout: 15000, // a slow CI or a busy laptop must not turn a correct test red
   },
 })

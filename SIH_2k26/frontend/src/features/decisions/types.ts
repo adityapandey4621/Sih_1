@@ -37,13 +37,16 @@ export interface DecisionQueue {
 }
 
 export interface SyncView {
-  status: 'NOT_CONFIGURED' | 'SYNC_PENDING' | 'SYNCED'
+  /** SYNCED means the receiver CONFIRMED receipt (shown as "confirmed"); nothing else ever does. */
+  status: 'NOT_CONFIGURED' | 'SYNC_PENDING' | 'SYNCED' | 'FAILED' | 'RECONCILIATION_REQUIRED'
   message: string
   attempts: number
   last_error: string | null
   last_attempt_at: string | null
   confirmed_at: string | null
   external_ref: string | null
+  next_attempt_at?: string | null
+  adapter?: string | null
 }
 
 export interface EcDecisionOut {

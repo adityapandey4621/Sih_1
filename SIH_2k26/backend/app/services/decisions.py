@@ -411,7 +411,7 @@ def issue_outcome(
         db.flush()
         dtexts.outcome_issued(db, case.id, app, iss.id, dec.outcome, ref, dec.version_number > 1)
         sync = portal_sync.record(db, app.id, "official_issuance", iss.id, "DECISION_ISSUED")
-        if sync.status == "SYNC_PENDING":
+        if sync.status in ("SYNC_PENDING", "FAILED", "RECONCILIATION_REQUIRED"):
             dtexts.sync_pending(db, case.id, app, sync.id)
     except BaseException:
         if stored is not None:

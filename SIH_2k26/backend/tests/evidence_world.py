@@ -112,7 +112,7 @@ class World:
         d = self.a.get(f"/api/notices/{notice_id}").json()
         item = d["items"][0]
         if upload:
-            r = self.a.upload(f"/api/notices/{notice_id}/items/{item['id']}/documents", "file", "corrected.pdf", digital_pdf([MAIN_TEXT, ["Valid until: 31/03/2030"]]))
+            r = self.a.upload(f"/api/notices/{notice_id}/items/{item['id']}/documents", "file", "corrected.pdf", digital_pdf([MAIN_TEXT, ["Lease term of the premises. Valid until: 31/03/2030"]]))
             assert r.status_code in (200, 201), r.text
         d = self.a.get(f"/api/notices/{notice_id}").json()
         r = self.a.put(f"/api/notices/{notice_id}/response", {"explanation": "Please see the corrected letter.", "items": [{"notice_item_id": item["id"], "explanation": text}],

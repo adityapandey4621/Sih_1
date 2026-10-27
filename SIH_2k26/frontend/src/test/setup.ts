@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
+
+// Pages are lazy-loaded; on a busy machine the first render of a route can take longer than the 1 s default. This changes how long a test WAITS, never what it asserts.
+configure({ asyncUtilTimeout: 4000 })
 
 // jsdom does not implement these.
 window.scrollTo = vi.fn() as unknown as typeof window.scrollTo

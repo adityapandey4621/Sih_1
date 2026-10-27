@@ -112,4 +112,22 @@ Three authorities, three records: `EcDecision` (Executive Committee), `CouncilDe
 
 ### Phase 6 control flow
 
-`DecisionHandoff` → `decisions.open_case` → Bureau observations → `record_decision` → `issue_outcome` (+ `portal_sync.record`) → `record_ratification` → [appeal: `appeals.submit` → SAC `CommitteeCase` → `sac.complete` → `appeals.on_sac_completed` → `record_council_decision`] → `close_case` → `PostDecisionHandoff`. `python -m app.reconcile_decisions` runs the route reconcile, retries pending syncs and finalises expired appeal windows. No scheduler is introduced.
+`DecisionHandoff` → `decisions.open_case` → Bureau observations → `record_decision` → `issue_outcome` (+ `portal_sync.record`) → `record_ratification` → [appeal: `appeals.submit` → SAC `CommitteeCase` → `sac.complete` → `appeals.on_sac_completed` → `record_council_decision`] → `close_case` → `PostDecisionHandoff`. `python -m app.reconcile_decisions` runs the route reconcile, retries pending syncs and finalises expired appeal windows.
+
+## Phase 7 — compliance, validity, deadlines and alerts
+
+Services: `compliance.py` (obligations), `validity.py` (document dates), `clock_policy.py` (what a deadline policy may say), `clocks.py` (create, pause, resume, complete), `clock_sources.py` (derive clocks from recorded cases; decide from persisted state whether a subject is finished), `scheduler.py` (plan, claim with a lease, re-check, send, retry, recover). Presenters: `compliance_presenters.py`; router: `routers/compliance.py` (`/api/post-approval/*`, `/api/clocks/*`).
+
+### Phase 7 data model (migration `0007`)
+
+`clocks` (immutable trigger / original due date / policy snapshot; status; accumulated approved pause), `clock_segments`, `clock_events`, `scheduled_work` (the durable alert queue; unique key per clock + alert + due date), `obligations`, `obligation_submissions`, `obligation_documents`, `obligation_reviews`, `obligation_events`, `validity_items`, `validity_versions`; `notifications` gains `clock_id`, `obligation_id`, `policy_ref`. All state lives in PostgreSQL; there is no Redis and no in-memory queue.
+
+### Phase 7 control flow
+
+Recorded case → `clock_sources.sync` creates the clocks that should exist (no policy, no clock; unusable policy, `NOT_ESTABLISHED`) → `scheduler.plan_alerts` writes one `scheduled_work` row per configured alert → `claim_next` (compare-and-set lease) → `_run` re-reads the subject and the clock, skips what is stale, decides recipients from current state, stores notifications (keyed, so a second run creates none) → `DONE` / `RETRY_WAIT` / `FAILED_EXHAUSTED`. `python -m app.scheduler` loops this; `--once` runs one pass; a killed scheduler loses nothing because its leases expire and the next pass re-derives everything from the cases.
+
+## Phase 8 — integration boundary, hardening and deployment
+
+`app/integration/aicte/` (contract, adapter interface, HTTP adapter, mock, mapping, demo receiver) behind `services/portal_sync.py`; `http_hardening.py` (ASGI middleware: request id and access log, security headers, size cap, rate limit, last-resort error handler), `netutil.py` (trusted-proxy client address), `readiness.py`, `db_protect.py` (append-only triggers), `config.py` (`*_FILE` secrets, `production_problems`), `create_admin.py`. Migration `0008`: `integration_logs`, `external_syncs.{next_attempt_at, adapter, last_outcome}`, two more sync states, append-only triggers. Deployment: `backend/Dockerfile`, `frontend/Dockerfile` + `nginx.conf`, `docker-compose.yml`, `docker-compose.prod.yml`, `ops/`, `.github/workflows/ci.yml`.
+
+Processes in a deployment: `api` (stateless), `worker` (documents), `scheduler` (deadlines), PostgreSQL (the only store), `web` (nginx), ClamAV (production). Each of `worker` and `scheduler` may be run in several copies: work is claimed with leases.

@@ -273,7 +273,7 @@ def record_council_decision(
     db.flush()
     dtexts.appeal_decided(db, ap.id, app, outcome)
     sync = portal_sync.record(db, app.id, "council_decision", row.id, "APPEAL_DECIDED")
-    if sync.status == "SYNC_PENDING":
+    if sync.status in ("SYNC_PENDING", "FAILED", "RECONCILIATION_REQUIRED"):
         dtexts.sync_pending(db, case.id, app, sync.id)
     return row, False
 

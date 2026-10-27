@@ -13,6 +13,8 @@ os.environ["ALLOW_DEMO_RULES"] = "true"
 os.environ["OCR_ENGINE"] = "none"  # tests that need OCR inject an engine explicitly
 os.environ["SCANNER"] = "none"
 os.environ["REQUIRE_MALWARE_SCAN"] = "false"
+os.environ["RATE_LIMIT_ENABLED"] = "false"  # tests that exercise the limiter enable it explicitly
+os.environ["AICTE_INTEGRATION_MODE"] = "none"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

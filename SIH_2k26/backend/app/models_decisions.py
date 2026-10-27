@@ -208,7 +208,7 @@ class ExternalSync(Base):
     __tablename__ = "external_syncs"
     __table_args__ = (
         UniqueConstraint("subject_type", "subject_id", "kind"),
-        CheckConstraint("status IN ('NOT_CONFIGURED','SYNC_PENDING','SYNCED')", name="ck_sync_status"),
+        CheckConstraint("status IN ('NOT_CONFIGURED','SYNC_PENDING','SYNCED','FAILED','RECONCILIATION_REQUIRED')", name="ck_sync_status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=new_id)
@@ -216,7 +216,7 @@ class ExternalSync(Base):
     subject_type: Mapped[str] = mapped_column(String(24))  # official_issuance | council_decision
     subject_id: Mapped[uuid.UUID] = mapped_column(Uuid)
     kind: Mapped[str] = mapped_column(String(32))
-    status: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(24))  # RECONCILIATION_REQUIRED is 23 characters: found by the PostgreSQL run (SQLite does not enforce lengths)
     payload_hash: Mapped[str] = mapped_column(String(64))
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     last_error: Mapped[str | None] = mapped_column(Text)
@@ -224,6 +224,9 @@ class ExternalSync(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # SYNC_PENDING: not before this moment (exponential back-off, bounded)
+    adapter: Mapped[str | None] = mapped_column(String(20))  # which adapter made the last attempt (mock | http | ...)
+    last_outcome: Mapped[str | None] = mapped_column(String(40))  # the adapter's error code of the last attempt, never a message body
 
 
 class PostDecisionHandoff(Base):

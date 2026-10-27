@@ -288,8 +288,8 @@ def test_if_persistence_fails_the_response_is_not_accepted(world, monkeypatch):
         raise RuntimeError("database went away")
 
     monkeypatch.setattr(texts, "ready_for_rescrutiny", boom)
-    with pytest.raises(RuntimeError):
-        world.a.post(f"/api/notices/{nid}/response/submit", {"idempotency_key": "fails-midway-1", "row_version": saved["response"]["row_version"]})
+    failed = world.a.post(f"/api/notices/{nid}/response/submit", {"idempotency_key": "fails-midway-1", "row_version": saved["response"]["row_version"]})
+    assert failed.status_code == 500 and "went away" not in failed.text  # a generic answer; nothing was accepted
     monkeypatch.undo()
     with SessionLocal() as db:
         assert db.scalar(select(NoticeResponse.status)) == "DRAFT" and db.scalar(select(DeficiencyNotice.status)) == "ISSUED"

@@ -1,0 +1,52 @@
+/* Phase 7: obligations, document validity and deadlines. Reuses the shared tokens; adds only tabs and an action row. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  border-bottom: 1px solid var(--line);
+  margin-block: var(--s-4);
+}
+
+.tabs__tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: var(--s-2) var(--s-4);
+  margin-bottom: -1px;
+}
+
+.tabs__tab:hover {
+  color: var(--text);
+}
+
+.tabs__tab[aria-selected='true'] {
+  border-bottom-color: var(--teal);
+  color: var(--ink);
+}
+
+.tabs__tab:focus-visible {
+  box-shadow: var(--focus);
+  outline: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .tabs__tab {
+    white-space: nowrap;
+  }
+}

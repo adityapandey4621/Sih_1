@@ -155,8 +155,8 @@ def test_failure_after_the_file_is_written_cleans_up_the_file(world, monkeypatch
         raise RuntimeError("database went away")
 
     monkeypatch.setattr(jobs, "add_event", boom)
-    with pytest.raises(RuntimeError):
-        world.a.upload(f"{world.url}/documents", "doc-main", "x.pdf", PDF)
+    r = world.a.upload(f"{world.url}/documents", "doc-main", "x.pdf", PDF)
+    assert r.status_code == 500 and "went away" not in r.text  # a generic answer, and the file that was already written is removed
     assert stored_files() == []
     with SessionLocal() as db:
         assert db.scalar(select(ApplicationDocument)) is None

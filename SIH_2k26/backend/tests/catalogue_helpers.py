@@ -39,13 +39,16 @@ EXTRA_FIELDS = [
 MAIN_TEXT = ["Name of the Institution: Test Institute", "Date: 12/03/2024", "Reference No: RF-2024-9"]
 
 
-def checklist(source_id: uuid.UUID | None = None) -> list[ChecklistItemIn]:
+VALIDITY_FIELD = {"field_key": "valid_until", "label": "Valid until", "kind": "date", "anchors": ["Valid until"], "required": False, "validity": True}
+
+
+def checklist(source_id: uuid.UUID | None = None, validity: bool = False) -> list[ChecklistItemIn]:
     mk = lambda **kw: ChecklistItemIn(source_id=source_id, **kw)  # noqa: E731
     return [
         mk(item_key="contact", label="Contact person", explanation="Who we contact.", item_type="form_field", field_kind="text", validation={"max_length": 50}, display_order=0),
         mk(item_key="kind", label="Kind of change", explanation="Choose one.", item_type="form_field", field_kind="select", options=["A", "B"], display_order=1),
         mk(item_key="b-detail", label="Detail for B", explanation="Only for B.", item_type="form_field", field_kind="text", applies_when={"item_key": "kind", "equals": "B"}, display_order=2),
-        mk(item_key="doc-main", label="Main document", explanation="Required file.", item_type="document_upload", display_order=3, clause_ref="cl. 9", extraction=MAIN_FIELDS),
+        mk(item_key="doc-main", label="Main document", explanation="Required file.", item_type="document_upload", display_order=3, clause_ref="cl. 9", extraction=[*MAIN_FIELDS, VALIDITY_FIELD] if validity else MAIN_FIELDS),
         mk(item_key="doc-extra", label="Extra document", explanation="Optional file.", required=False, item_type="document_upload", display_order=4, extraction=EXTRA_FIELDS),
         mk(item_key="decl", label="Declaration", explanation="Confirm.", item_type="declaration", display_order=5),
     ]
@@ -92,6 +95,7 @@ def build_published(
     deadlines: "list[DeadlinePolicyIn] | None" = None,
     response_days: int | None = None,
     appeal_days: int | None = None,
+    validity_field: bool = False,
 ) -> Cat:
     """Create (or reuse) author/approver, a category and a rule set, optionally taken all the way to published.
 
@@ -118,8 +122,8 @@ def build_published(
             db, v.id,
             VersionContentIn(
                 academic_years=list(years), change_summary="Initial test version", source_ids=[src_id],
-                checklist=checklist(src_id) if with_checklist else [], route=route_stages if route_stages is not None else route(src_id),
-                deadlines=deadlines if deadlines is not None else [
+                checklist=checklist(src_id, validity_field) if with_checklist else [], route=route_stages if route_stages is not None else route(src_id),
+                deadlines=(deadlines(src_id) if callable(deadlines) else deadlines) if deadlines is not None else [
                     DeadlinePolicyIn(
                         policy_key="resp", label="Response", deadline_type="INTERNAL_SLA", trigger_event="deficiency_notice_issued", source_id=src_id,
                         **({"duration_value": response_days, "duration_unit": "days", "calendar_convention": "CALENDAR"} if response_days else {}),

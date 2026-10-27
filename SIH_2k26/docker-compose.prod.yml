@@ -1,0 +1,99 @@
+# Production-oriented overrides. Use ON TOP of docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Requires Docker Compose 2.24+ (the `!reset` tag). What changes:
+#   * ENVIRONMENT=production: the API refuses to start with development settings (see Settings.production_problems), demo rules and the demo seed are off,
+#     malware scanning is required (a ClamAV container is added), cookies are Secure, HSTS is sent.
+#   * secrets come from files in ./secrets (git-ignored), mounted as Docker secrets and read through the *_FILE variables: nothing secret is in this file, an env var or an image.
+#   * PostgreSQL is not published on the host.
+#   * TLS is NOT handled here: put a TLS-terminating proxy or platform router in front of `web` (port 8080) and set SIH_PUBLIC_HOST to its host name. See docs/DEPLOYMENT.md.
+#
+# This file has been checked with `docker compose config` only where noted in docs/ACCEPTANCE_REPORT.md; it has NOT been run against a production environment.
+
+x-prod-env: &prod-env
+  ENVIRONMENT: production
+  DATABASE_URL: ""  # clears the development value from docker-compose.yml so the secret file below is used
+  DATABASE_URL_FILE: /run/secrets/database_url
+  ALLOWED_ORIGINS: https://${SIH_PUBLIC_HOST:?set SIH_PUBLIC_HOST to the public host name, for example dossier.example.org}
+  TRUSTED_PROXY_COUNT: "1"
+  ALLOW_DEMO_RULES: "false"
+  SCANNER: clamd
+  CLAMD_HOST: clamav
+  REQUIRE_MALWARE_SCAN: "true"
+  AICTE_INTEGRATION_MODE: ${AICTE_INTEGRATION_MODE:-none}
+  AICTE_BASE_URL: ${AICTE_BASE_URL:-}
+  AICTE_API_KEY_FILE: /run/secrets/aicte_api_key
+  AICTE_HMAC_SECRET_FILE: /run/secrets/aicte_hmac_secret
+
+services:
+  db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_PASSWORD: !reset null
+    secrets: [db_password]
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      - sih_clamdb:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  migrate:
+    environment: *prod-env
+    secrets: [database_url, aicte_api_key, aicte_hmac_secret]
+
+  api:
+    environment: *prod-env
+    secrets: [database_url, aicte_api_key, aicte_hmac_secret]
+    depends_on:
+      clamav:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+
+  worker:
+    environment: *prod-env
+    secrets: [database_url, aicte_api_key, aicte_hmac_secret]
+    depends_on:
+      clamav:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+
+  scheduler:
+    environment: *prod-env
+    secrets: [database_url, aicte_api_key, aicte_hmac_secret]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs: [/tmp]
+
+  web:
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
+  database_url:
+    file: ./secrets/database_url
+  aicte_api_key:
+    file: ./secrets/aicte_api_key
+  aicte_hmac_secret:
+    file: ./secrets/aicte_hmac_secret
+
+volumes:
+  sih_clamdb:

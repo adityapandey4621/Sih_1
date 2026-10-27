@@ -1,0 +1,86 @@
+# Continuous integration. NOT YET RUN: this file was written on a machine with no access to GitHub Actions, so it is unverified until its first run.
+# The same commands were run by hand on the development machine; docs/ACCEPTANCE_REPORT.md records which of them passed there.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sih
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: sih_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sih -d sih_test" --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: System packages (OCR)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+      - run: pip install -r requirements-dev.txt
+      - name: Tests on SQLite (fast)
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Tests on PostgreSQL (the production database)
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://sih:ci_only_password@localhost:5432/sih_test
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Migrations apply, match the models, and reverse
+        env:
+          DATABASE_URL: postgresql+psycopg://sih:ci_only_password@localhost:5432/sih_test
+        run: |
+          python -c "from sqlalchemy import create_engine, text; e=create_engine('$DATABASE_URL'); c=e.begin().__enter__(); c.execute(text('DROP SCHEMA public CASCADE')); c.execute(text('CREATE SCHEMA public'))"
+          python -m alembic upgrade head
+          python -m alembic check
+          python -m alembic downgrade 0005
+          python -m alembic upgrade head
+          python -m app.db_protect
+      - name: Dependency vulnerabilities
+        run: pip install pip-audit && pip-audit -r requirements.txt
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npm run build
+      - name: Dependency vulnerabilities (high and above)
+        run: npm audit --audit-level=high
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t sih-api backend
+      - run: docker build -t sih-web frontend
+      - name: Compose files are valid
+        run: |
+          echo "SIH_PUBLIC_HOST=example.org" > .env
+          mkdir -p secrets && for f in db_password database_url aicte_api_key aicte_hmac_secret; do echo x > secrets/$f; done
+          docker compose -f docker-compose.yml config -q
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q

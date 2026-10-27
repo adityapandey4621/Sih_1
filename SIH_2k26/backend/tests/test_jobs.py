@@ -55,8 +55,7 @@ def test_upload_stores_the_version_its_processing_row_and_its_job_together(world
 
 def test_a_failed_upload_leaves_no_job_behind(world, monkeypatch):
     monkeypatch.setattr(jobs, "enqueue_document_job", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("queue down")))
-    with pytest.raises(RuntimeError):
-        world.upload()
+    assert world.upload(expect=(500,)).status_code == 500  # a generic 500, and nothing left behind
     with SessionLocal() as db:
         assert db.scalar(select(func.count()).select_from(ProcessingJob)) == 0 and db.scalar(select(func.count()).select_from(ApplicationDocument)) == 0
     assert not [p for p in storage().root.rglob("*") if p.is_file()]
@@ -132,6 +131,40 @@ def test_concurrent_workers_each_claim_distinct_jobs(world):
     with ThreadPoolExecutor(8) as pool:
         got = [g for g in pool.map(claim, range(8)) if g]
     assert len(got) == len(set(got)) and 2 <= len(got) <= 3  # two document jobs (+ the cross-check): each claimed exactly once
+
+
+@pytest.mark.skipif(engine.dialect.name == "sqlite", reason="needs real concurrency (PostgreSQL)")
+def test_two_simultaneous_uploads_do_not_fail_when_both_try_to_queue_the_cross_check(world):
+    """Found by the browser journey: two documents uploaded at the same moment both saw 'no cross-check waiting' and both inserted one; the unique index turned the loser's
+    upload into an HTTP 500. The loser must simply find that one is already waiting (the coalesced outcome)."""
+    import threading
+    import time
+
+    app_id = uuid.UUID(world.app["id"])
+    holder = SessionLocal()
+    jobs.enqueue_cross_check(holder, app_id, get_settings())
+    holder.flush()  # inserted, NOT yet committed: a second session cannot see it, and its own insert will have to wait for this one to finish
+    outcome: list[object] = []
+
+    def second() -> None:
+        try:
+            with SessionLocal() as db:
+                jobs.enqueue_cross_check(db, app_id, get_settings())
+                db.commit()
+            outcome.append("ok")
+        except Exception as exc:  # noqa: BLE001
+            outcome.append(exc)
+
+    t = threading.Thread(target=second)
+    t.start()
+    time.sleep(1.0)  # the second insert is now waiting on the first
+    holder.commit()
+    holder.close()
+    t.join(30)
+    assert outcome == ["ok"]  # no exception reached the caller
+    with SessionLocal() as db:
+        waiting = db.scalars(select(ProcessingJob).where(ProcessingJob.application_id == app_id, ProcessingJob.job_type == "CROSS_CHECK", ProcessingJob.status.in_(("queued", "retry_wait")))).all()
+    assert len(waiting) == 1  # still exactly one waiting cross-check
 
 
 def test_a_worker_restart_does_not_lose_queued_or_in_flight_jobs(world):

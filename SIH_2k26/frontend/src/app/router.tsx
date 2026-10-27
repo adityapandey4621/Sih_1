@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Outlet } from 'react-router-dom'
 import { LoadingState } from '../components/ui/feedback'
 import { AuthProvider } from '../features/auth/AuthContext'
-import { RequireAuth, RequirePermission } from '../features/auth/guards'
+import { RequireAnyPermission, RequireAuth, RequirePermission } from '../features/auth/guards'
 import { AppShell } from '../features/shell/AppShell'
 import { AppHome } from '../features/dashboard/AppHome'
 import { NotFoundPage, NotFoundInShell } from './NotFound'
@@ -34,6 +34,11 @@ const SacQueuePage = lazy(() => import('../features/committee/QueuePage').then((
 const SacCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.SacCasePage })))
 const ComplianceListPage = lazy(() => import('../features/committee/InstitutionPanels').then((m) => ({ default: m.ComplianceListPage })))
 const CompliancePage = lazy(() => import('../features/committee/InstitutionPanels'))
+const PostApprovalPage = lazy(() => import('../features/postApproval/PostApprovalPage'))
+const ObligationPage = lazy(() => import('../features/postApproval/ObligationPage'))
+const DeadlinesPage = lazy(() => import('../features/postApproval/DeadlinesPage'))
+const ClockDetailPage = lazy(() => import('../features/postApproval/DeadlinesPage').then((m) => ({ default: m.ClockDetailPage })))
+const IntegrationPage = lazy(() => import('../features/integration/IntegrationPage'))
 const RulesCatalogPage = lazy(() => import('../features/rules/RulesCatalogPage'))
 const RuleVersionPage = lazy(() => import('../features/rules/RuleVersionPage'))
 const RuleEditorPage = lazy(() => import('../features/rules/RuleEditorPage'))
@@ -52,6 +57,7 @@ const lazyPage = (node: ReactNode) => (
 )
 
 const guarded = (permission: string, node: ReactNode) => lazyPage(<RequirePermission permission={permission}>{node}</RequirePermission>)
+const guardedAny = (permissions: string[], node: ReactNode) => lazyPage(<RequireAnyPermission permissions={permissions}>{node}</RequireAnyPermission>)
 
 function Root() {
   return (
@@ -103,6 +109,12 @@ export const routes = [
               { path: 'decisions/:id', element: guarded('decision:queue', <DecisionCasePage />) },
               { path: 'appeals', element: guarded('sac:queue', <SacQueuePage />) },
               { path: 'sac/:id', element: guarded('sac:queue', <SacCasePage />) },
+              { path: 'integration', element: guarded('integration:read', <IntegrationPage />) },
+              // Obligations, document validity and deadlines (Phase 7): institutions see their own, officials what their role covers; the backend decides
+              { path: 'post-approval', element: guardedAny(['compliance:queue', 'compliance:read_own'], <PostApprovalPage />) },
+              { path: 'post-approval/obligations/:id', element: guardedAny(['compliance:queue', 'compliance:read_own'], <ObligationPage />) },
+              { path: 'deadlines', element: guarded('clock:read', <DeadlinesPage />) },
+              { path: 'deadlines/:id', element: guarded('clock:read', <ClockDetailPage />) },
               // Institution: SHC compliance
               { path: 'compliance', element: guarded('committee:status_own', <ComplianceListPage />) },
               { path: 'compliance/:id', element: guarded('shc:respond', <CompliancePage />) },

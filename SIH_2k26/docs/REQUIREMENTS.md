@@ -138,4 +138,23 @@ See `COMMITTEE.md`, G-P5-1 … G-P5-9: the December 2025 corrigendum is unverifi
 
 ### Additional verification gaps (Phase 6)
 
-See `DECISIONS_AND_APPEALS.md`, G-P6-1 … G-P6-11: the December 2025 corrigendum is unverified; the counting convention and cut-off time for the 7-day window are not stated; appealable outcomes, the ratification vocabulary and the Council's appeal outcomes are demo configuration; no OFFICIAL decision policy exists; no letter text is generated; no portal integration; a "further scrutiny / EVC" recommendation does not start a second cycle; appeal files are not malware-scanned.
+See `DECISIONS_AND_APPEALS.md`, G-P6-1 … G-P6-11: the December 2025 corrigendum is unverified; the counting convention and cut-off time for the 7-day window are not stated; appealable outcomes, the ratification vocabulary and the Council's appeal outcomes are demo configuration; no OFFICIAL decision policy exists; no letter text is generated; no portal integration; a "further scrutiny / EVC" recommendation does not start a second cycle; appeal files are not malware-scanned (**closed in Phase 8**: all private uploads are scan-aware).
+
+## Functional requirements (Phase 7)
+
+- Compliance obligations are recorded by an authorised person from an issued decision (Executive Committee, or the Council's decision on appeal) with the source decision, applicable condition, rule version, responsible institution, assigned verifier, required evidence, due-date basis and full history.
+- Institutions submit evidence; **only the assigned verifier's recorded review verifies**; a correction may be requested; a "not met" outcome is a record; nothing revokes an approval or imposes a penalty.
+- Document-validity dates keep their source (document version, page, method) and are classed extracted / declared / human-verified; uncertain or conflicting dates need review; renewals are new versions and never silence the earlier alerts until verified (or an authorised person resolves the item).
+- Separate persistent clocks for statutory deadlines, internal officer-stage service levels, institution responses, EVC scheduling / completion, appeals, compliance obligations and document validity, each with trigger, start, due date, status, policy version, approved pause segments and completion history, in PostgreSQL. No duration is invented; no later rule version or internal-SLA change moves an existing clock.
+- A durable scheduler (leases, idempotent alert keys, bounded retries, recovery after restart, re-check of current state before sending); in-app alerts for pre-due / due / overdue, submission / verification, expiry / renewal and authorised escalation, with recipients, event, policy version, attempts and delivery status recorded; no email/SMS claimed.
+- Institutions see only their own obligations; officials see what their role covers; internal notes stay internal; functional queues, filters, evidence submission, verification screens, deadline indicators and clear empty / error states.
+
+### Additional verification gaps (Phase 7)
+
+See `COMPLIANCE_AND_DEADLINES.md`, G-P7-1 … G-P7-9: no verified source for post-approval obligations or who verifies them; no verified internal service-level durations; counting conventions unverified; which documents must stay valid and the expiry convention unverified; reminder and escalation requirements unverified; pausing of statutory deadlines unverified; no consequence of an unmet obligation defined; no email/SMS; obligations stay linked to the decision version they were recorded against.
+
+## Non-functional and integration requirements (Phase 8)
+
+- The AICTE integration is an adapter behind a strict, project-defined contract with idempotency, bounded retries, timeouts, rate limit and circuit breaker, truthful sync states (pending / confirmed / failed / reconciliation required), and a log without secrets or contents. It is **unverified** against any real system and defaults to **off**; a mock and a demo receiver are labelled DEMO ONLY (`INTEGRATION.md`).
+- Production fails closed on development settings; secrets come from files; security headers, request ids, size and rate limits, sanitised errors, readiness and trusted-proxy handling are enforced; the audit trail and recorded decisions are append-only in the database as well as in the application (`SECURITY_REVIEW.md`).
+- Docker images, compose files (local and production-oriented), nginx, backup / restore-verify scripts and a CI workflow exist (`DEPLOYMENT.md`, `OPERATIONS.md`); what has actually been run is stated in `ACCEPTANCE_REPORT.md`, what remains in `GAPS_AND_BLOCKERS.md`.

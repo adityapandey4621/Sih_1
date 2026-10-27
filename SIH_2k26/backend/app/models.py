@@ -119,4 +119,4 @@ class AuditEvent(Base):
 
 
 # Register Phase 2 tables on Base.metadata (these modules import names defined above).
-from app import guards, models_applications, models_catalogue, models_processing, models_scrutiny, models_committee, models_decisions  # noqa: E402,F401
+from app import guards, models_applications, models_catalogue, models_processing, models_scrutiny, models_committee, models_decisions, models_clocks, models_compliance, models_integration  # noqa: E402,F401

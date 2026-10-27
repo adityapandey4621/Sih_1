@@ -6,12 +6,14 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 
 from app.models import AuditEvent, User
+from app.netutil import resolve_client_ip
 
 
 def client_ip(request: Request) -> str | None:
-    # Phase 1 runs without a trusted proxy chain; X-Forwarded-For is deliberately ignored
-    # because it is client-controllable. Configure a trusted-proxy setting before relying on it.
-    return request.client.host if request.client else None
+    # X-Forwarded-For is client-controllable, so it is used only behind TRUSTED_PROXY_COUNT proxies (see app/netutil.py).
+    from app.config import get_settings
+
+    return resolve_client_ip(request.client.host if request.client else None, request.headers.get("x-forwarded-for"), get_settings().trusted_proxy_count)
 
 
 def record(

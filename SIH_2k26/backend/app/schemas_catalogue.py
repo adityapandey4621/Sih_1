@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from app.domain import Classification, DeadlineType, ExtractionKind, FieldKind, ItemType, SourceVerification, is_valid_academic_year
+from app.services.clock_policy import validate_escalation
 
 Key = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")]
 Text300 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
@@ -90,6 +91,14 @@ class ExtractionFieldIn(BaseModel):
     # Values sharing a compare_group are compared across documents; compare_to_application compares with the application record.
     compare_group: Key | None = None
     compare_to_application: Literal["institution_name"] | None = None
+    # Phase 7: a date field flagged here is tracked as a document-validity (expiry) date. A person must still confirm each date before any alert depends on it.
+    validity: bool = False
+
+    @model_validator(mode="after")
+    def _validity_is_a_date(self) -> "ExtractionFieldIn":
+        if self.validity and self.kind != ExtractionKind.DATE:
+            raise ValueError("Only a date field can be a validity date.")
+        return self
 
 
 class ChecklistItemIn(BaseModel):
@@ -165,6 +174,9 @@ class DeadlinePolicyIn(BaseModel):
     def _duration(self) -> "DeadlinePolicyIn":
         if (self.duration_value is None) != (self.duration_unit is None):
             raise ValueError("Duration value and unit must be given together (or both left empty when not established).")
+        errors = validate_escalation(self.escalation)
+        if errors:
+            raise ValueError("escalation: " + " ".join(errors))
         return self
 
 

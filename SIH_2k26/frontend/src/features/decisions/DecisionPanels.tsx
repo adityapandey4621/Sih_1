@@ -28,11 +28,13 @@ const fileSize = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` 
 /** What the integration with AICTE's portal has actually confirmed. Never claims more than the provider confirmed. */
 export function SyncNote({ sync, what }: { sync: SyncView | null; what: string }) {
   if (!sync) return null
-  const tone = sync.status === 'SYNCED' ? 'success' : sync.status === 'SYNC_PENDING' ? 'warning' : 'info'
+  const tone = sync.status === 'SYNCED' ? 'success' : sync.status === 'FAILED' ? 'error' : sync.status === 'SYNC_PENDING' || sync.status === 'RECONCILIATION_REQUIRED' ? 'warning' : 'info'
+  const unconfirmed = sync.status === 'SYNC_PENDING' || sync.status === 'FAILED' || sync.status === 'RECONCILIATION_REQUIRED'
   return (
-    <Alert tone={tone} title={`AICTE portal — ${what}: ${humanise(sync.status)}`}>
+    <Alert tone={tone} title={`AICTE portal — ${what}: ${sync.status === 'SYNCED' ? 'Confirmed' : humanise(sync.status)}`}>
       {sync.message}
-      {sync.status === 'SYNC_PENDING' && sync.last_error && <div className="mono muted">Last problem: {sync.last_error} · attempts {sync.attempts}</div>}
+      {unconfirmed && sync.last_error && <div className="mono muted">Last problem: {sync.last_error} · attempts {sync.attempts}</div>}
+      {sync.status === 'SYNC_PENDING' && sync.next_attempt_at && <div className="mono muted">Next attempt not before {formatDate(sync.next_attempt_at)}</div>}
       {sync.status === 'SYNCED' && sync.external_ref && <div className="mono muted">Portal reference {sync.external_ref}</div>}
     </Alert>
   )

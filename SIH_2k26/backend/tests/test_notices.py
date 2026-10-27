@@ -389,8 +389,8 @@ def test_if_persistence_fails_part_way_the_notice_is_not_issued_anywhere(world, 
         return real(db, case, actor, action, **kw)
 
     monkeypatch.setattr(sc, "log_event", boom)
-    with pytest.raises(RuntimeError):
-        world.issue(n["id"], key="atomic-key-0001")
+    r = world.issue(n["id"], key="atomic-key-0001", expect=500)  # a generic 500; the notice stays unissued
+    assert "went away" not in r.text
     monkeypatch.undo()
     with SessionLocal() as db:
         notice = db.scalar(select(DeficiencyNotice))

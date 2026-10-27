@@ -1,0 +1,11 @@
+# Files that run on Linux (containers, CI, servers) must keep LF line endings even when checked out on Windows:
+# a CRLF in a shell script or an nginx / Docker file breaks it in ways that are hard to see.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.inc text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+requirements*.txt text eol=lf
+requirements.lock text eol=lf
+*.ps1 text eol=crlf

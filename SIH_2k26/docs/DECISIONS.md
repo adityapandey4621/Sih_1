@@ -93,3 +93,25 @@ Format: decision — rationale. Reversible unless stated.
 6. **The SAC reuses `committee_cases`** (stage `SAC`) rather than a new case table, so assignment scoping, scheduling, proceedings, versioned reports and the selection boundary behave exactly as for EVC / SHC.
 7. **Non-demo applications are blocked** at the decision stage until an OFFICIAL decision policy exists, rather than defaulting to demo vocabulary.
 8. **Administrators carry no decision powers.**
+
+## Phase 7 decisions
+
+1. **Verification is a separate act by a separate role** (`compliance_officer`, assigned per obligation). Evidence submission is an institution permission; the Bureau defines obligations but cannot verify them.
+2. **No duration without a usable policy.** A clock exists only for a policy that exists in the application's frozen configuration; an unusable one yields a visible `NOT_ESTABLISHED` clock (a database CHECK forbids a date on it). A date an authorised person takes from a decision is a `SPECIFIED` clock with its citation, never labelled statutory.
+3. **Clocks are immutable records of a decision made at the time** (trigger, original due date, policy snapshot). Approved pause time is added separately. A new rule version cannot move them.
+4. **Pause only where the policy says.** The pause rule is data in the policy's `escalation` field, validated at authoring time; no seeded statutory policy allows it.
+5. **Alerts re-check state.** Work is planned from a clock but decided at send time from the database; a nearer alert supersedes earlier late ones after an outage.
+6. **PostgreSQL is the only queue.** No Redis, no in-memory state: a restart is a non-event.
+7. **Validity alerts depend on a person's confirmation**, not on OCR; the expiry moment is the end of the stated date in UTC (convention flagged unverified).
+8. **An obligation follows exactly one decision** (an Executive Committee decision version, or the Council's decision on an appeal), chosen by the person recording it, never inferred.
+9. **API prefix `/api/post-approval`** (not `/api/compliance`) to avoid the Phase 5 SHC compliance routes — found by a failing test, not by inspection.
+
+## Phase 8 decisions
+
+1. **The integration boundary is ours.** Because no AICTE interface exists for us, we define a strict contract, label it DEMO ONLY, and make a real endpoint a replacement of one module (`INTEGRATION.md`). Nothing assumes AICTE will accept it.
+2. **`SYNCED` remains the stored value for "confirmed"** (no data migration of meaning); the UI says "Confirmed". `FAILED` and `RECONCILIATION_REQUIRED` are new states with stricter rules than `SYNC_PENDING`.
+3. **Fail closed in production** rather than warn: a start with development settings is refused.
+4. **Append-only in the database**, in addition to the ORM guards, for the audit trail and recorded decisions; the limit (a superuser can drop a trigger) is documented rather than hidden.
+5. **Rate limiting is in-process and says so**; the supplied nginx adds a limit in front; a distributed limiter is a documented gap.
+6. **The first administrator is created by an operator command**, not by a seed, a default password or a public sign-up.
+7. **Docker images install `requirements.lock`** (the exact versions the suites ran against) so builds are repeatable; `requirements.txt` states minimums.

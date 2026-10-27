@@ -2,20 +2,36 @@
 
 Integrated approval workflow, compliance monitoring and alert management. The product **supports** the official process; authorised officials make every regulatory decision. It is not an official AICTE service.
 
-**Status: Phase 6 — Executive Committee decisions, Council steps and SAC appeals** (on top of Phase 5 — conditional route engine, EVC and SHC) (queues, scoped member workspaces, a selection boundary with a labelled demonstration mode, schedules, visit observations and evidence, versioned reports, SHC compliance / hearing / recommendation, hand-off to the decision stage). Built on **Phase 4 — authorised scrutiny, formal deficiency notices and re-scrutiny** (queue, scoped reviewer workspace, notices issued only by an authorised issuer, institution responses with corrected evidence as new versions, hand-off to the next configured stage, in-app notifications), on top of Phase 3 document processing, the Phase 2 rule catalogue and intake and the Phase 1 foundation. Phase 6 adds the decision queue, Regulation Bureau observations, the Executive Committee's recorded decision (versioned, with reasoned corrections), the official outcome shown to the institution, the Council's recorded steps, rule-driven appeal eligibility, the SAC process and the Council's decision on an appeal, with an honest AICTE-sync status. The software never decides: authorised bodies decide and the system records. Post-approval compliance, the deadline / SLA engine and a production AICTE integration are **not** built; no report, recommendation or completed stage is an approval. See `docs/DECISIONS_AND_APPEALS.md`, `docs/COMMITTEE.md`, `docs/SCRUTINY.md` and `docs/PROJECT_ROADMAP.md`.
+**Status: Phase 8 — integration boundary, hardening, end-to-end validation and deployment** on top of Phase 7 (post-approval compliance, document validity, the persistent deadline engine and alerts), Phase 6 (Executive Committee decisions, Council steps, SAC appeals), Phase 5 (conditional route engine, EVC and SHC), Phase 4 (authorised scrutiny and deficiency notices), Phase 3 (document processing and OCR), Phase 2 (rule catalogue and intake) and Phase 1 (foundation).
 
-> **The official Approval Process Handbook 2024-27 has been read for the clauses the product relies on** (`docs/APH_VERIFICATION.md`), but **no document checklist is encoded and later corrigenda are unchecked**, so the only selectable configuration is still seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**. See `docs/RULE_CATALOGUE.md` and the gaps in `docs/REQUIREMENTS.md`.
+The software never decides: authorised bodies decide and the system records. No report, recommendation, upload, passing deadline or completed stage is an approval, a rejection, a verification or a penalty.
+
+> **What is NOT verified.** The official Approval Process Handbook 2024-27 has been read for the clauses the product relies on (`docs/APH_VERIFICATION.md`), but no document checklist is encoded and later corrigenda are unchecked, so the only selectable configuration is seeded **DEMO ONLY — NOT VERIFIED AS CURRENT OFFICIAL RULES**.
+> **No AICTE API, credential, webhook or specification has been supplied**, so the AICTE integration is a project-defined boundary with a mock and a demo receiver: **real integration is UNVERIFIED** (`docs/INTEGRATION.md`).
+> Nothing has been deployed to any host. Read `docs/ACCEPTANCE_REPORT.md` for what was actually run and `docs/GAPS_AND_BLOCKERS.md` for what remains.
 
 ```
-backend/   FastAPI + SQLAlchemy + Alembic (PostgreSQL)
-frontend/  Vite + React + TypeScript SPA
-docs/      ROADMAP, ARCHITECTURE, REQUIREMENTS (incl. rule-source gaps), RULE_CATALOGUE, DOCUMENT_PROCESSING, SCRUTINY, COMMITTEE, APH_VERIFICATION, API, DESIGN_SYSTEM, DECISIONS
+backend/   FastAPI + SQLAlchemy + Alembic (PostgreSQL); app/integration/aicte = the integration boundary
+frontend/  Vite + React + TypeScript SPA (+ nginx image)
+ops/       backup / restore-verify scripts
+docs/      ARCHITECTURE, DEPLOYMENT, OPERATIONS, INTEGRATION, SECURITY_REVIEW, ACCEPTANCE_REPORT, GAPS_AND_BLOCKERS, COMPLIANCE_AND_DEADLINES, DECISIONS_AND_APPEALS,
+           COMMITTEE, SCRUTINY, DOCUMENT_PROCESSING, RULE_CATALOGUE, REQUIREMENTS (incl. rule-source gaps), APH_VERIFICATION, API, DESIGN_SYSTEM, DECISIONS, PROJECT_ROADMAP
            sources/ = the AICTE reference pack supplied by the team (not official publications)
 ```
 
-## Run locally
+## Run it with Docker (demonstration)
 
-Prerequisites: Node 22+, Python 3.12+, PostgreSQL 15+ (or Docker).
+```powershell
+copy .env.example .env                 # set SEED_PASSWORD (12+ characters)
+docker compose up --build -d           # db, migrate, api, worker, scheduler, web  ->  http://localhost:8080
+docker compose --profile demo run --rm seed
+```
+
+Health: `/api/health` (liveness) and `/api/ready` (database, schema, storage). Production, secrets, TLS and hosting limits: `docs/DEPLOYMENT.md`. Operating, backups, recovery: `docs/OPERATIONS.md`.
+
+## Run it locally (development)
+
+Prerequisites: Node 22+, Python 3.13 (3.12+), PostgreSQL 15+ (or Docker), Tesseract (optional, for scanned pages).
 
 ```powershell
 # 1. Database (Docker option; otherwise create a database/user yourself)
@@ -26,12 +42,13 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt
 copy ..\.env.example .env           # then set SEED_PASSWORD (min. 12 chars) and adjust DATABASE_URL if needed
-.\.venv\Scripts\alembic upgrade head
+.\.venv\Scripts\python -m alembic upgrade head
 .\.venv\Scripts\python -m app.seed        # demo users, one per role (development only)
-.\.venv\Scripts\python -m app.seed_rules  # catalogue: unpublishable OFFICIAL drafts + published DEMO ONLY configuration
-# in two terminals:
+.\.venv\Scripts\python -m app.seed_rules  # catalogue: unpublishable OFFICIAL drafts + published DEMO ONLY configuration (incl. DEMO deadline policies)
+# in three terminals:
 .\.venv\Scripts\python -m uvicorn app.main:app --reload --port 8000   # API
-.\.venv\Scripts\python -m app.worker                                         # document-processing worker (needed for uploads to be read)
+.\.venv\Scripts\python -m app.worker                                         # document processing (needed for uploads to be read)
+.\.venv\Scripts\python -m app.scheduler                                      # deadlines and alerts (needed for reminders)
 
 # 3. Frontend (new terminal)
 cd frontend
@@ -41,43 +58,36 @@ npm run dev                          # http://localhost:5173  (proxies /api to :
 
 macOS/Linux: use `source .venv/bin/activate` and `cp`.
 
-Demo accounts (seed): `<role>@demo.example.org`, e.g. `scrutiny.officer@…`, `platform.admin@…`, `auditor@…`; password = your `SEED_PASSWORD`. Roles: institute.user, scrutiny.officer, scrutiny.coordinator, notice.issuer, evc.coordinator, evc.member, shc.coordinator, shc.member, executive.committee, sac.member, rules.admin (author), rules.approver, auditor, platform.admin.
+Demo accounts (seed): `<role>@demo.example.org`, e.g. `scrutiny.officer@…`, `regulation.bureau@…`, `compliance.officer@…`, `platform.admin@…`; password = your `SEED_PASSWORD`. Roles: institute.user, scrutiny.officer, scrutiny.coordinator, notice.issuer, evc.coordinator, evc.member, shc.coordinator, shc.member, executive.committee, regulation.bureau, council.member, sac.coordinator, sac.member, compliance.officer, rules.admin (author), rules.approver, auditor, platform.admin.
 
-Document processing: with the worker running, upload a PDF in an application's Documents step and watch its state update. After submission, `scrutiny.coordinator@…` assigns a reviewer (demonstration assignment), `scrutiny.officer@…` works the case, `notice.issuer@…` issues a prepared notice, and the institution responds under **Notices**. Details in `docs/SCRUTINY.md`.
+Walk-through by phase (what each role does) is in the phase documents: intake and documents (`docs/DOCUMENT_PROCESSING.md`), scrutiny and notices (`docs/SCRUTINY.md`), EVC and SHC (`docs/COMMITTEE.md`), decisions and appeals (`docs/DECISIONS_AND_APPEALS.md`), obligations, validity and deadlines (`docs/COMPLIANCE_AND_DEADLINES.md`), integration (`docs/INTEGRATION.md`).
 
-Committee work (Phase 5): with a DEMO rule set, `evc.coordinator@…` records a demonstration selection (fictional `evc.member@…`), proposes and confirms a visit; the member records observations and submits the report; the coordinator completes the stage; `shc.coordinator@…` and `shc.member@…` run compliance, review and the recommendation; the institution answers under **Compliance**. Details and the exact start-up list in `docs/COMMITTEE.md`.
+## Environment variables
 
-Try it: sign in as `institute.user@…` -> Applications -> New application. As `rules.admin@…` open Rule catalogue to author; as `rules.approver@…` open the version left in review and publish it (it needs an explicit supersede). Publishing as the author is refused.
-
-## Environment variables (`backend/.env`, see `.env.example`)
+See `.env.example` for the full annotated list and `docs/DEPLOYMENT.md` §3.2 for production. The most important:
 
 | Variable | Purpose |
 |---|---|
-| `ENVIRONMENT` | `development` / `test` / `production` (production ⇒ `Secure` cookies, docs off, seeding refused) |
-| `DATABASE_URL` | SQLAlchemy URL, `postgresql+psycopg://…` |
+| `ENVIRONMENT` | `development` / `test` / `production` (production ⇒ refuses development settings, `Secure` cookies, HSTS, docs off, seeding refused, demo rules off, malware scan required) |
+| `DATABASE_URL` / `DATABASE_URL_FILE` | SQLAlchemy URL, `postgresql+psycopg://…` |
 | `ALLOWED_ORIGINS` | Origins accepted on state-changing requests |
-| `SESSION_IDLE_MINUTES`, `SESSION_ABSOLUTE_HOURS` | Session lifetimes |
-| `LOGIN_MAX_FAILURES`, `LOGIN_WINDOW_MINUTES` | Sign-in throttling |
-| `INVITATION_VALID_HOURS` | Invitation expiry |
-| `STORAGE_DIR` | Private attachment directory (default `storage`, git-ignored). Never served statically |
-| `MAX_UPLOAD_MB` | Attachment size limit (default 10) |
-| `ALLOW_DEMO_RULES` | Allow DEMO configuration to be published/selected (default true; **always off in production**) |
-| `SEED_PASSWORD` | Dev seed only |
-| `VITE_API_PROXY_TARGET` (frontend, optional) | Dev proxy target, default `http://127.0.0.1:8000` |
+| `TRUSTED_PROXY_COUNT` | reverse proxies in front of the API (0 = ignore `X-Forwarded-For`) |
+| `STORAGE_DIR`, `MAX_UPLOAD_MB`, `SCANNER`, `REQUIRE_MALWARE_SCAN` | private attachment storage and malware scanning |
+| `AICTE_INTEGRATION_MODE` | `none` (default) / `mock` (DEMO ONLY) / `http` — see `docs/INTEGRATION.md` |
+| `SEED_PASSWORD` | development seed only |
 
 ## Checks
 
 ```powershell
 cd backend;  .\.venv\Scripts\python -m pytest -q                 # SQLite by default (PostgreSQL-only and real-Tesseract tests skip when not configured)
-$env:TEST_DATABASE_URL="postgresql+psycopg://…/sih_test"; pytest  # same suite on PostgreSQL
+$env:TEST_DATABASE_URL="postgresql+psycopg://…/sih_test"; pytest  # same suite on PostgreSQL (also runs the append-only-trigger and concurrency tests)
+.\.venv\Scripts\python -m alembic check                          # models match migrations
 cd frontend; npm run typecheck; npm test; npm run build        # no ESLint is configured
 ```
 
 ## Operations notes
 
-- **Account provisioning:** only a platform administrator can invite users (`/app/admin/users`) or approve institution requests. No email provider is configured, so the invitation link is shown once to the administrator to pass on securely.
+- **First administrator** of a new deployment: `python -m app.create_admin --email … --name "…"` (prompts for the password; never taken from the command line). Further accounts are provisioned by that administrator (`/app/admin/users`): the invitation link is shown once, because no email provider is configured.
 - **Password recovery:** self-service reset is unavailable (no email provider). Operator procedure: `python -m app.set_password user@example.org` (revokes sessions, audited).
-- **First administrator:** in a non-seeded environment, create one `platform_admin` row via a one-off script using `app.security.hash_password` (a bootstrap command is a Phase 3 item).
-- Production: serve SPA and `/api` from one origin behind TLS; set `ENVIRONMENT=production`.
-
-Decisions and appeals (Phase 6): with a DEMO rule set (seeded users follow the pattern `<role>@demo.example.org`), `regulation.bureau@…` records observations and issues the outcome, `executive.committee@…` records the decision, `council.member@…` records its step; the institution sees the outcome and, if the rule version allows, appeals; `sac.coordinator@…` and `sac.member@…` run the SAC stage; `council.member@…` records the decision on the appeal. Run `python -m app.reconcile_decisions` to retry pending syncs and finalise expired windows. Details in `docs/DECISIONS_AND_APPEALS.md`.
+- **Recovery after an outage:** start the worker and the scheduler again; both recover abandoned work by themselves. `python -m app.reconcile_decisions` retries unconfirmed external syncs.
+- **No email or SMS is ever sent.** Notifications are in-app and say so.

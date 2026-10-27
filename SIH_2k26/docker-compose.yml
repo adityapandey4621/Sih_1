@@ -1,5 +1,32 @@
-# Local development database only.
-# The password below is a throwaway development value, not a secret.
+# The whole application on one machine, for LOCAL use and DEMONSTRATION:  docker compose up --build
+#
+#   db         PostgreSQL 17 (also what `docker compose up -d db` starts for the non-Docker development flow in the README)
+#   migrate    runs `alembic upgrade head` once per start and exits; the others wait for it
+#   api        the FastAPI application (health: /api/health, readiness: /api/ready)
+#   worker     document processing (OCR, extraction)
+#   scheduler  deadlines and alerts
+#   web        nginx: the built web app + a proxy to the API on ONE origin   ->  http://localhost:8080
+#   seed       (profile "demo") creates the demo users and the DEMO ONLY rule catalogue. Needs SEED_PASSWORD in .env. Never for production.
+#
+# Every password below is a throwaway local value, not a secret. For anything other than a local trial use docker-compose.prod.yml on top of this file
+# (docs/DEPLOYMENT.md): it switches to ENVIRONMENT=production, which REFUSES to start with these development values.
+
+x-app-env: &app-env
+  ENVIRONMENT: development
+  DATABASE_URL: postgresql+psycopg://sih:sih_dev_password@db:5432/sih_aicte
+  ALLOWED_ORIGINS: http://localhost:8080
+  TRUSTED_PROXY_COUNT: "1"
+  STORAGE_DIR: /data/storage
+  OCR_ENGINE: tesseract
+  ALLOW_DEMO_RULES: "true"
+
+x-backend: &backend
+  build: ./backend
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+
 services:
   db:
     image: postgres:17-alpine
@@ -17,5 +44,76 @@ services:
       timeout: 3s
       retries: 10
 
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["python", "-m", "alembic", "upgrade", "head"]
+    environment:
+      <<: *app-env
+
+  api:
+    <<: *backend
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-env
+    volumes:
+      - sih_storage:/data
+    expose:
+      - "8000"
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-env
+    volumes:
+      - sih_storage:/data
+    healthcheck:
+      disable: true
+
+  scheduler:
+    <<: *backend
+    command: ["python", "-m", "app.scheduler"]
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-env
+    healthcheck:
+      disable: true
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  seed:
+    <<: *backend
+    profiles: ["demo"]
+    restart: "no"
+    command: ["sh", "-c", "python -m app.seed && python -m app.seed_rules"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      <<: *app-env
+      SEED_PASSWORD: ${SEED_PASSWORD:-}  # the seed itself refuses an empty or short value and says so
+
 volumes:
   sih_pgdata:
+  sih_storage:

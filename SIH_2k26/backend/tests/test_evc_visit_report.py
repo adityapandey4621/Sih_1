@@ -310,8 +310,8 @@ def test_if_report_submission_fails_halfway_nothing_is_left_submitted(c, monkeyp
         raise RuntimeError("the database went away")
 
     monkeypatch.setattr(ctexts, "report_submitted", boom)
-    with pytest.raises(RuntimeError):
-        c.evc1.post(f"{c.url('EVC')}/report/submit", {"idempotency_key": "half-way-key-1", "row_version": d["evc"]["draft"]["row_version"]})
+    r = c.evc1.post(f"{c.url('EVC')}/report/submit", {"idempotency_key": "half-way-key-1", "row_version": d["evc"]["draft"]["row_version"]})
+    assert r.status_code == 500 and "went away" not in r.text  # a generic answer; the half-done work is rolled back
     monkeypatch.undo()
     after = c.case("EVC", c.evc1)
     assert after["state"] == "VISIT_IN_PROGRESS" and after["evc"]["draft"]["status"] == "DRAFT" and after["evc"]["versions"] == []

@@ -88,11 +88,11 @@ cd ..\frontend ; npm run dev
 | G-P6-5 | No letter wording, signature or seal is generated: reference / file only. |
 | G-P6-6 | No authorised AICTE portal integration; sync is `NOT_CONFIGURED` by default. |
 | G-P6-7 | A SAC recommendation of "further scrutiny / EVC" is recorded but does not trigger a second cycle. |
-| G-P6-8 | Appeal and issuance files are not malware-scanned. |
+| G-P6-8 | ~~Appeal and issuance files are not malware-scanned.~~ **Closed in Phase 8:** every private upload goes through the configured scanner (infected = refused and deleted); with no scanner the file is recorded `NOT_SCANNED` and, in production, refused. Still unverified: a real ClamAV was not run on the development machine. |
 | G-P6-9 | A post-issue correction does not move the appeal window (anchored at the first issue); whether it should is a rule question. |
 | G-P6-10 | The roles `regulation_bureau`, `council_member`, `sac_coordinator` and `sac_member` are application capabilities, not AICTE designations; real appointment of people to them is out of scope. |
 | G-P6-11 | Downgrading migration `0006` deletes SAC cases / reports and `DEC` / `SAC` policies (they cannot exist under the Phase 5 CHECKs). |
 
 ## Not in this phase
 
-Post-approval compliance, the SLA / reminder scheduler, production AICTE integration, microservices / queues.
+Post-approval compliance, the SLA / reminder scheduler, production AICTE integration, microservices / queues. *(Updated: post-approval compliance, the deadline scheduler and alerts were built in Phase 7 — `COMPLIANCE_AND_DEADLINES.md`; the appeal window is now also a persistent clock. The integration boundary and the new sync states `FAILED` / `RECONCILIATION_REQUIRED` came in Phase 8 — `INTEGRATION.md`. A production AICTE integration is still not built and is unverified.)*

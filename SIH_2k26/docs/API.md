@@ -152,3 +152,39 @@ Responses are built by `app/decision_presenters.py` and `app/committee_presenter
 | `GET /api/sac/appeal-documents/{id}/download` | `sac:queue` within scope | Appeal evidence |
 
 New permissions: `decision:queue`, `decision:observe`, `decision:record`, `decision:issue`, `council:record`, `decision:read_own`, `appeal:submit`, `sac:queue`, `sac:coordinate`, `sac:work`; dashboards `dashboard:executive` and `dashboard:appeals`. New roles: `regulation_bureau`, `council_member`, `sac_coordinator`, `sac_member` (with the existing `executive_committee`).
+
+## Phase 7 — obligations, document validity, deadlines
+
+Prefix `/api/post-approval` (the older `/api/compliance/*` is the Phase 5 SHC compliance-response API). Mutating calls take an `idempotency_key` (8-80 chars) where a repeat must not create a second record; a replay answers `200` with `X-Idempotent-Replay: true`. A stale `row_version` answers `409 stale_version`. Out-of-scope access answers `404` and is audited.
+
+| Endpoint | Permission | Purpose |
+|---|---|---|
+| `GET /api/post-approval/obligations` (`status`, `q`, `due=overdue\|soon\|ontrack`, paging) | `compliance:queue` or `compliance:read_own` | List within scope: institution — own; Bureau — all; compliance officer — assigned |
+| `GET /api/post-approval/obligations/{id}` | same, scoped | Condition, source decision, due date and its basis, submissions (with versions), reviews (internal notes only for officials), history, `can` (what this viewer may do now) |
+| `GET /api/post-approval/overview` | `compliance:read_own` | The institution's obligations, tracked documents and deadlines |
+| `GET /api/post-approval/cases?q=`, `GET …/verifiers` | `compliance:define` | Issued cases to record against; assignable verifiers |
+| `POST /api/post-approval/applications/{id}/obligations` | `compliance:define` | Record an obligation from an issued decision (`source`: `EC_DECISION` or `COUNCIL_APPEAL_DECISION`; `due`: `NONE`, `SPECIFIED` with a citation, or `POLICY`) |
+| `POST …/obligations/{id}/evidence` (multipart: `files`, `labels`, `note`, `idempotency_key`, `row_version`) | `compliance:submit` | Submit evidence. **Not verification.** |
+| `POST …/obligations/{id}/review` | `compliance:verify` (the assigned officer) | `VERIFIED` / `CORRECTION_REQUESTED` / `NOT_MET` with a reason; `submission_id` must be the latest |
+| `POST …/obligations/{id}/withdraw`, `…/reassign` | `compliance:define` | Recorded in error / change verifier |
+| `GET …/documents/{id}/download` | scoped | Evidence file (private, authorised, `no-store`) |
+| `GET /api/post-approval/validity` (`status=needs_review\|expiring\|resolved`) | `compliance:queue` or `compliance:read_own` | Tracked documents with every extracted / declared / verified date and its source |
+| `POST …/validity/items/{id}/renewals` (multipart) | `compliance:submit` | Upload a renewal and state its date (a claim; old alerts stay in force) |
+| `POST …/validity/versions/{id}/verify`, `…/reject`; `POST …/validity/items/{id}/resolve` | `compliance:verify` | Confirm a date against the document / refuse a renewal / stop tracking (with reason) |
+| `GET /api/clocks` (`kind`, `status`, `due`, `q`, paging), `GET /api/clocks/{id}` | `clock:read` or `compliance:read_own` | Deadlines the role covers; detail (segments, events, planned and sent alerts) for officials |
+| `GET /api/clocks/health` | `clock:manage` | Scheduler backlog, failures |
+| `POST /api/clocks/{id}/pause`, `…/resume` | `clock:manage` | Only where the clock's policy permits (`409 pause_not_permitted` otherwise) |
+
+New permissions: `compliance:queue`, `compliance:define`, `compliance:verify`, `compliance:read_own`, `compliance:submit`, `clock:read`, `clock:manage`, `dashboard:compliance`. New role: `compliance_officer`.
+
+## Phase 8 — operations and integration
+
+| Endpoint | Permission | Purpose |
+|---|---|---|
+| `GET /api/health` | none | Liveness |
+| `GET /api/ready` | none | Readiness: `database`, `schema_current`, `storage_writable` (booleans only); `503` when not ready |
+| `GET /api/integration/status` | `integration:read` (Bureau, auditor, administrator) | Mode, adapter summary (no secrets), `verified: false`, counts by sync state, recent records, call log |
+| `GET /api/integration/contract` | `integration:read` | JSON Schemas of the project-defined contract (`DEMO ONLY`) |
+| `POST /api/integration/syncs/{id}/retry` | `integration:manage` (Bureau) | Fresh bounded attempts for a `FAILED` / `RECONCILIATION_REQUIRED` record |
+
+Every response carries `X-Request-ID`. Validation errors (`422`) return `{"detail": [{"loc", "msg", "type"}]}` — never the submitted values. Unexpected errors return `500 {"code": "internal_error", "request_id"}`. `429 rate_limited` carries `Retry-After`; `413 request_too_large`. Sync states returned for decisions: `NOT_CONFIGURED`, `SYNC_PENDING`, `SYNCED` (confirmed), `FAILED`, `RECONCILIATION_REQUIRED`.

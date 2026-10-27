@@ -1,4 +1,4 @@
-import { FilePlus2, FileWarning, Inbox, Library, ListChecks, ScrollText, UserCog, type LucideIcon } from 'lucide-react'
+import { CalendarClock, Cable, FilePlus2, FileWarning, Inbox, Library, ListChecks, ScrollText, UserCog, type LucideIcon } from 'lucide-react'
 import { DASHBOARDS, dashboardPath } from '../dashboard/dashboardSpecs'
 
 export interface NavItem {
@@ -33,7 +33,11 @@ export const NAV_ITEMS: NavItem[] = [
   { id: 'applications', label: 'Applications', to: '/app/applications', icon: FilePlus2, permission: 'application:read_own', group: 'workspace' },
   { id: 'notices', label: 'Notices', to: '/app/notices', icon: FileWarning, permission: 'notice:read_own', group: 'workspace' },
   { id: 'compliance', label: 'Compliance', to: '/app/compliance', icon: ListChecks, permission: 'committee:status_own', group: 'workspace' },
+  { id: 'post-approval-own', label: 'Obligations and deadlines', to: '/app/post-approval', icon: CalendarClock, permission: 'compliance:read_own', group: 'workspace' },
+  { id: 'post-approval-bureau', label: 'Compliance and validity', to: '/app/post-approval', icon: CalendarClock, permission: 'compliance:define', group: 'workspace' },
+  { id: 'deadlines', label: 'Deadlines', to: '/app/deadlines', icon: CalendarClock, permission: 'clock:read', group: 'workspace' },
   { id: 'rule-catalogue', label: 'Rule catalogue', to: '/app/rules', icon: Library, permission: 'rules:read', group: 'workspace' },
+  { id: 'integration', label: 'Integration', to: '/app/integration', icon: Cable, permission: 'integration:read', group: 'oversight' },
   { id: 'access-requests', label: 'Access requests', to: '/app/admin/access-requests', icon: Inbox, permission: 'admin:access-requests', group: 'administration' },
   { id: 'users', label: 'Users and invitations', to: '/app/admin/users', icon: UserCog, permission: 'admin:users', group: 'administration' },
   { id: 'audit-log', label: 'Audit log', to: '/app/audit-log', icon: ScrollText, permission: 'audit:read', group: 'oversight' },

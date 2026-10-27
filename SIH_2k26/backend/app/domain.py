@@ -321,6 +321,19 @@ class NotificationEvent(StrEnum):
     READY_FOR_RESCRUTINY = "READY_FOR_RESCRUTINY"
     SCRUTINY_COMPLETED = "SCRUTINY_COMPLETED"
     HANDED_OFF = "HANDED_OFF"
+    # Phase 7
+    OBLIGATION_DEFINED = "OBLIGATION_DEFINED"
+    EVIDENCE_SUBMITTED = "EVIDENCE_SUBMITTED"
+    OBLIGATION_VERIFIED = "OBLIGATION_VERIFIED"
+    CORRECTION_REQUESTED = "CORRECTION_REQUESTED"
+    OBLIGATION_NOT_MET = "OBLIGATION_NOT_MET"
+    CLOCK_PRE_DUE = "CLOCK_PRE_DUE"
+    CLOCK_DUE = "CLOCK_DUE"
+    CLOCK_OVERDUE = "CLOCK_OVERDUE"
+    CLOCK_ESCALATED = "CLOCK_ESCALATED"
+    VALIDITY_NEEDS_REVIEW = "VALIDITY_NEEDS_REVIEW"
+    VALIDITY_RENEWAL_UPLOADED = "VALIDITY_RENEWAL_UPLOADED"
+    VALIDITY_VERIFIED = "VALIDITY_VERIFIED"
 
 
 # ---- committee stages: EVC and SHC (Phase 5) ------------------------------------------------------------
@@ -592,7 +605,9 @@ class AppealEligibility(StrEnum):
 class SyncStatus(StrEnum):
     NOT_CONFIGURED = "NOT_CONFIGURED"  # no authorised integration exists: nothing was sent, and nothing is claimed
     SYNC_PENDING = "SYNC_PENDING"  # an attempt failed or is outstanding; it will be retried
-    SYNCED = "SYNCED"  # the external system CONFIRMED receipt
+    SYNCED = "SYNCED"  # the external system CONFIRMED receipt (shown as "confirmed")
+    FAILED = "FAILED"  # refused, or the bounded retries ran out: a person must look. Never retried automatically.
+    RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"  # an answer came back that cannot be trusted: ask the receiver what it holds before doing anything else
 
 
 class DecisionEvent(StrEnum):
@@ -611,3 +626,119 @@ class DecisionEvent(StrEnum):
 
 
 APPEAL_DEMO_BANNER = "DEMO ONLY — fictional decision, ratification and appeal configuration. Not AICTE's rules."
+
+# ---- compliance, validity, clocks and alerts (Phase 7) ------------------------------------------------------------
+# Three things that must never be confused:
+#   uploading evidence     -> a submission exists                       (never "verified")
+#   verifying evidence     -> an authorised verifier recorded an outcome (the only way an obligation becomes VERIFIED)
+#   a deadline passing     -> an alert; never an automatic revocation, penalty or approval change
+# Every duration, alert offset and pause rule comes from a deadline policy of the application's FROZEN rule version (or from a date an
+# authorised person states and cites). A policy that is missing, unverified or ambiguous creates a NOT_ESTABLISHED clock, never a date.
+
+
+class ObligationStatus(StrEnum):
+    AWAITING_EVIDENCE = "AWAITING_EVIDENCE"
+    EVIDENCE_SUBMITTED = "EVIDENCE_SUBMITTED"  # submitted by the institution; NOT verified
+    CORRECTION_REQUESTED = "CORRECTION_REQUESTED"  # the verifier asked for a permitted correction
+    VERIFIED = "VERIFIED"  # an authorised verifier recorded that the evidence satisfies the condition
+    NOT_MET = "NOT_MET"  # an authorised verifier recorded that it does not. No consequence follows automatically.
+    WITHDRAWN = "WITHDRAWN"  # recorded in error; kept
+
+
+class ObligationAction(StrEnum):
+    SUBMIT = "submit"
+    VERIFY = "verify"
+    REQUEST_CORRECTION = "request_correction"
+    RECORD_NOT_MET = "record_not_met"
+    WITHDRAW = "withdraw"
+
+
+_OS, _OA = ObligationStatus, ObligationAction
+OBLIGATION_TRANSITIONS: dict[tuple[ObligationStatus, ObligationAction], ObligationStatus] = {
+    (_OS.AWAITING_EVIDENCE, _OA.SUBMIT): _OS.EVIDENCE_SUBMITTED,
+    (_OS.CORRECTION_REQUESTED, _OA.SUBMIT): _OS.EVIDENCE_SUBMITTED,
+    (_OS.EVIDENCE_SUBMITTED, _OA.VERIFY): _OS.VERIFIED,
+    (_OS.EVIDENCE_SUBMITTED, _OA.REQUEST_CORRECTION): _OS.CORRECTION_REQUESTED,
+    (_OS.EVIDENCE_SUBMITTED, _OA.RECORD_NOT_MET): _OS.NOT_MET,
+    (_OS.AWAITING_EVIDENCE, _OA.WITHDRAW): _OS.WITHDRAWN,
+    (_OS.CORRECTION_REQUESTED, _OA.WITHDRAW): _OS.WITHDRAWN,
+    (_OS.EVIDENCE_SUBMITTED, _OA.WITHDRAW): _OS.WITHDRAWN,
+}
+OBLIGATION_OPEN = (_OS.AWAITING_EVIDENCE.value, _OS.EVIDENCE_SUBMITTED.value, _OS.CORRECTION_REQUESTED.value)
+OBLIGATION_FINAL = (_OS.VERIFIED.value, _OS.NOT_MET.value, _OS.WITHDRAWN.value)
+
+
+class DueBasis(StrEnum):
+    POLICY = "POLICY"  # computed from a usable deadline policy of the frozen rule version
+    SPECIFIED = "SPECIFIED"  # a date an authorised person took from the decision, with the reference they cited
+    NONE = "NONE"  # no due date exists; none is invented
+
+
+class ReviewOutcome(StrEnum):
+    VERIFIED = "VERIFIED"
+    CORRECTION_REQUESTED = "CORRECTION_REQUESTED"
+    NOT_MET = "NOT_MET"
+
+
+class ClockKind(StrEnum):
+    OFFICER_STAGE = "OFFICER_STAGE"  # an internal service level for an officer's stage
+    INSTITUTION_RESPONSE = "INSTITUTION_RESPONSE"  # the institution's response period (deficiency notice)
+    EVC = "EVC"  # EVC scheduling / completion, where configured
+    APPEAL = "APPEAL"  # the appeal window
+    COMPLIANCE = "COMPLIANCE"  # an obligation's due date
+    DOCUMENT_VALIDITY = "DOCUMENT_VALIDITY"  # a human-verified document expiry date
+
+
+class ClockDeadlineType(StrEnum):
+    STATUTORY = "STATUTORY"  # stated by the policy as statutory / regulatory
+    INTERNAL_SLA = "INTERNAL_SLA"  # an internal service level
+    SPECIFIED = "SPECIFIED"  # a date an authorised person specified in a decision
+    VALIDITY = "VALIDITY"  # the end of a document's validity
+
+
+class ClockStatus(StrEnum):
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    NOT_ESTABLISHED = "NOT_ESTABLISHED"  # a policy exists but cannot establish a date; nothing is invented
+
+
+CLOCK_LIVE = (ClockStatus.RUNNING.value, ClockStatus.PAUSED.value)
+INSTITUTION_VISIBLE_CLOCKS = (ClockKind.INSTITUTION_RESPONSE.value, ClockKind.APPEAL.value, ClockKind.COMPLIANCE.value, ClockKind.DOCUMENT_VALIDITY.value)
+
+
+class AlertKind(StrEnum):
+    PRE_DUE = "PRE_DUE"
+    DUE = "DUE"
+    OVERDUE = "OVERDUE"
+
+
+class WorkStatus(StrEnum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    DONE = "DONE"
+    SKIPPED_STALE = "SKIPPED_STALE"  # the persisted state no longer calls for this alert
+    RETRY_WAIT = "RETRY_WAIT"
+    FAILED_EXHAUSTED = "FAILED_EXHAUSTED"
+    CANCELLED = "CANCELLED"
+
+
+class ValiditySource(StrEnum):
+    EXTRACTED = "EXTRACTED"  # read from a submitted document by the processing layer; a candidate only
+    DECLARED = "DECLARED"  # stated by the institution with a renewal upload; a claim only
+
+
+class ValidityStatus(StrEnum):
+    UNVERIFIED = "UNVERIFIED"
+    NEEDS_REVIEW = "NEEDS_REVIEW"  # uncertain or conflicting; a person must look
+    VERIFIED = "VERIFIED"  # a person confirmed the date against the document
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"  # a later version was verified
+
+
+NOTIFICATION_ESCALATION_ROLES = ("regulation_bureau", "scrutiny_coordinator", "evc_coordinator", "shc_coordinator", "sac_coordinator", "compliance_officer")
+VALIDITY_TRIGGER = "document_expiry"  # a deadline policy with this trigger carries only the alert schedule for a validity date (no duration)
+COMPLIANCE_DEFAULT_TRIGGER = "compliance_obligation_defined"  # a policy with this trigger computes an obligation's due date from the day it is recorded
+COMPLIANCE_ALERT_TRIGGER = "compliance_obligation_due"  # a policy with this trigger carries only the alert schedule for a date an authorised person specified
+CLOCK_DEMO_BANNER = "DEMO ONLY — fictional deadlines and alert schedules. Not AICTE's service levels or statutory periods."
