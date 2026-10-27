@@ -13,7 +13,7 @@ Each phase ends with working, tested software and a short handoff. Later phases 
 | 3 | Secure document processing: versions, OCR, extraction, preliminary evidence checks | Implemented |
 | 4 | Authorised scrutiny and re-scrutiny, formal deficiency process, corrections as new versions | Implemented (see `SCRUTINY.md`) |
 | 5 | Conditional route engine; EVC (selection boundary, schedule, visit, report) and SHC (compliance, hearing, recommendation); hand-off to the decision stage | Implemented (see `COMMITTEE.md`) |
-| 6 | Executive Committee decision records, eligible SAC appeals, undertakings | Planned |
+| 6 | Executive Committee decision records, Council steps, eligible SAC appeals | Implemented (see `DECISIONS_AND_APPEALS.md`) |
 | 7 | SLA clocks, notifications, document validity and alerts | Planned |
 | 8 | Authorised integration with AICTE systems, hardening, deployment | Planned |
 
@@ -62,3 +62,7 @@ Full description in `COMMITTEE.md`. The route engine reads the next stage from t
 - **7** Executive Committee decision records, eligible SAC appeals (clock from the exact applicable clause and rule version), undertakings.
 - **8** SLA clocks from versioned deadline policies (statutory separate from internal), notification delivery, document-validity alerts.
 - **9** Integration with AICTE systems only once authorised (adapter boundary with mock until then), security review, deployment.
+
+## Phase 6 — Executive Committee decisions, Council steps and SAC appeals (implemented)
+
+Full description in `DECISIONS_AND_APPEALS.md`. A decision case opens only when every mandatory stage of the frozen route is complete; the Regulation Bureau observes and issues, the Executive Committee decides (versioned, with reasoned corrections), the Council records its step and its decision on an appeal; the institution sees the official status and reasons; an appeal is eligible only per the frozen rule version (deadline computed from its own policy; the 7 days are encoded per clause with the counting convention flagged unverified); the SAC works the appeal and recommends; sync with AICTE is `NOT_CONFIGURED` / `SYNC_PENDING` / `SYNCED` and never claims more than a provider confirmed. **Not** in Phase 6: post-approval compliance, the SLA / reminder engine, production AICTE integration, any official decision policy (gaps G-P6-1…11). **Next:** Phase 7 — the SLA / deadline engine; Phase 8 — integration and hardening.

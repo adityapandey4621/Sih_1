@@ -82,3 +82,14 @@ Format: decision — rationale. Reversible unless stated.
 - **Stage completion is its own action.** Submitting a report or recommendation completes nothing; the coordinator completes the stage, and only then does the route advance and the institution see the EVC report.
 - **Scheduling never claims availability.** Only an exact-instant clash between a member's own live schedules is detected; no duration or deadline is invented.
 - **The decision hand-off is a record.** It is created only when no required stage is outstanding and it says `decided: false`.
+
+## Phase 6 decisions
+
+1. **Separate roles for the Bureau and the Council** (`regulation_bureau`, `council_member`), as application capabilities, so that the person who observes, decides, issues and ratifies are different permissions. They are not claimed AICTE designations.
+2. **Appeal windows encoded per clause**, anchored at the first issue: 7 days from the LoD issue (Ch. I 1.11(a)) or from the upload of the Executive Committee decision (Ch. II 2.24(a)). Calendar days are used and flagged unverified (the handbook states neither the counting convention nor the cut-off time). The deadline policy comes from the application's frozen rule version, never from code. Working-day counting is refused.
+3. **Reference only for official outputs**: an issued outcome is a reference and/or an uploaded PDF. The system generates no letter text, signature or seal.
+4. **A decision is a new versioned record**, never an edit: corrections carry a reason and supersede the earlier row, which stays visible. The Council's ratification and its decision on an appeal use `is_live` with partial unique indexes so exactly one live row exists.
+5. **`SYNCED` only on provider confirmation.** With no provider the state is `NOT_CONFIGURED`; a failed or unconfirmed push is `SYNC_PENDING` and retried; a sync problem never undoes a decision.
+6. **The SAC reuses `committee_cases`** (stage `SAC`) rather than a new case table, so assignment scoping, scheduling, proceedings, versioned reports and the selection boundary behave exactly as for EVC / SHC.
+7. **Non-demo applications are blocked** at the decision stage until an OFFICIAL decision policy exists, rather than defaulting to demo vocabulary.
+8. **Administrators carry no decision powers.**

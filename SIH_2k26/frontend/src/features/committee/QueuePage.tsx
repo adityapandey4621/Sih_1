@@ -32,6 +32,13 @@ const BUCKETS: Record<Stage, [CommitteeState, string][]> = {
     ['RECOMMENDATION_SUBMITTED', 'Recommendation submitted'],
     ['COMPLETED', 'Completed'],
   ],
+  SAC: [
+    ['SELECTION_PENDING', 'Awaiting authorised selection'],
+    ['SELECTION_REQUESTED', 'Selection requested'],
+    ['UNDER_REVIEW', 'Under review'],
+    ['RECOMMENDATION_SUBMITTED', 'Recommendation submitted'],
+    ['COMPLETED', 'Completed'],
+  ],
 }
 
 const SCOPE_TEXT = (stage: Stage, scope: QueueData['scope']) =>
@@ -79,15 +86,15 @@ export function CommitteeQueuePage({ stage }: { stage: Stage }) {
     },
     [params, setParams],
   )
-  const coordinator = can(stage === 'EVC' ? 'evc:coordinate' : 'shc:coordinate')
-  const path = stage === 'EVC' ? 'evc' : 'shc'
-  const title = stage === 'EVC' ? (coordinator ? 'EVC coordination' : 'My visits') : coordinator ? 'SHC coordination' : 'My SHC cases'
+  const coordinator = can(stage === 'EVC' ? 'evc:coordinate' : stage === 'SAC' ? 'sac:coordinate' : 'shc:coordinate')
+  const path = stage.toLowerCase()
+  const title = stage === 'EVC' ? (coordinator ? 'EVC coordination' : 'My visits') : stage === 'SAC' ? (coordinator ? 'Appeals (SAC)' : 'My appeal cases') : coordinator ? 'SHC coordination' : 'My SHC cases'
 
   return (
     <>
       <PageHeader
         title={title}
-        description={stage === 'EVC' ? 'Applications whose approved route requires an expert visit, and where arranging and completing each visit stands.' : 'Applications whose approved route requires the Standing Hearing Committee compliance / hearing process.'}
+        description={stage === 'EVC' ? 'Applications whose approved route requires an expert visit, and where arranging and completing each visit stands.' : stage === 'SAC' ? 'Appeals against Executive Committee decisions that the institution submitted within the configured period. The SAC recommends; the Council decides.' : 'Applications whose approved route requires the Standing Hearing Committee compliance / hearing process.'}
         crumbs={[{ label: 'Workspace', to: '/app' }, { label: title }]}
       />
       <ResourceView resource={res} reload={reload}>
@@ -131,7 +138,7 @@ export function CommitteeQueuePage({ stage }: { stage: Stage }) {
               <EmptyState title={q || state || flag || from ? 'No cases match these filters' : 'No cases in your scope yet'}>
                 {data.scope === 'member'
                   ? 'A case appears here only once you have been assigned to it through the authorised selection step.'
-                  : 'A case appears here when the approved route of a submitted application requires this stage.'}
+                  : stage === 'SAC' ? 'A case appears here when an institution submits an appeal that the recorded rules allow.' : 'A case appears here when the approved route of a submitted application requires this stage.'}
               </EmptyState>
             ) : (
               <div className="table-wrap">
@@ -204,3 +211,4 @@ export function CommitteeQueuePage({ stage }: { stage: Stage }) {
 
 export const EvcQueuePage = () => <CommitteeQueuePage stage="EVC" />
 export const ShcQueuePage = () => <CommitteeQueuePage stage="SHC" />
+export const SacQueuePage = () => <CommitteeQueuePage stage="SAC" />

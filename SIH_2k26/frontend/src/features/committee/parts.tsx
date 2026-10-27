@@ -65,4 +65,4 @@ export function EventList({ events }: { events: CaseEvent[] }) {
 }
 
 /** What the recorded configuration permits, with where each part comes from; DEMO configuration is always labelled. */
-export const stageWord = (stage: 'EVC' | 'SHC') => (stage === 'EVC' ? 'Expert visit (EVC)' : 'Standing Hearing Committee (SHC)')
+export const stageWord = (stage: 'EVC' | 'SHC' | 'SAC') => (stage === 'EVC' ? 'Expert visit (EVC)' : stage === 'SHC' ? 'Standing Hearing Committee (SHC)' : 'Standing Appellate Committee (SAC)')

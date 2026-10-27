@@ -16,7 +16,7 @@ Read in the supplied official PDF (APH 2024-27, see `APH_VERIFICATION.md`). Only
 | Ch. I 1.9(h) | The Scrutiny / Re-Scrutiny report and the **EVC report are made available to the institutions** through the portal | The institution sees the EVC report once the stage is completed (the timing is this product's convention, gap G-P5-7) |
 | Ch. I 1.9, 2.23.2, Table 2.3 | The route differs per category; "AA" = as applicable depending on the outcome of previous steps | Conditional stages need a recorded human determination |
 | Ch. II 2.23.3 | Institutions have a chance to submit compliance for shortcomings from scrutiny / re-scrutiny / EVC before the SHC; the SHC's recommendations go to the Executive Committee | SHC compliance, and the hand-off to the later decision stage |
-| Ch. II 2.24 | An appeal goes to the SAC after the Executive Committee's decision | SAC is **not** a pre-decision stage and is not built here |
+| Ch. II 2.24 | An appeal goes to the SAC after the Executive Committee's decision | SAC is **not** a pre-decision stage; built in Phase 6 (`DECISIONS_AND_APPEALS.md`) on the same case table |
 
 **Not stated by the handbook** (so nothing is encoded): a response period for SHC compliance; whether or how a hearing is held; a scheduling deadline; an SHC recommendation vocabulary; who coordinates visits. **Not verified**: the reported December 2025 corrigendum (EVC constitution authority, hybrid visits). The official AICTE pages returned HTTP 404 / connection reset on 2026-10-27, so a primary copy could not be retrieved; hybrid visits are therefore refused with that reason.
 

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models_applications import Application, ApplicationDocument
 from app.models_catalogue import ChecklistItem, DeadlinePolicy, RouteStage, RuleSource, RuleVersion, RuleVersionSource
+from app.models_decisions import Appeal, AppealDocument, BureauObservation, CouncilDecision, DecisionCase, EcDecision, OfficialIssuance
 from app.models_committee import (
     CommitteeCase,
     CommitteeEventRow,
@@ -134,6 +135,27 @@ def _guard(session: Session, flush_context, instances) -> None:  # noqa: ANN001
         elif isinstance(obj, FindingEvent | ScrutinyEvent):
             if obj not in session.new:
                 raise ImmutableRecordError("History records are append-only.")
+
+        # ---- Phase 6: decisions, ratification, appeals ----
+        elif isinstance(obj, DecisionCase):
+            if obj not in session.new and (obj in session.deleted or _real_changes(obj)):
+                raise ImmutableRecordError("A decision case changes state only through the workflow transitions.")
+
+        elif isinstance(obj, BureauObservation | EcDecision | AppealDocument):
+            if obj not in session.new:
+                raise ImmutableRecordError("A recorded decision, observation or appeal document is part of the record and cannot be changed or deleted.")
+
+        elif isinstance(obj, OfficialIssuance):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("decision_id", "case_id", "document_reference", "storage_key", "sha256", "issued_at", "issued_by_id"))):
+                raise ImmutableRecordError("An issued official outcome cannot be altered; it can only be superseded.")
+
+        elif isinstance(obj, CouncilDecision):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("outcome", "reasons", "speaking_order", "reference", "recorded_by_id", "recorded_at", "kind", "decision_id", "appeal_id", "content_hash"))):
+                raise ImmutableRecordError("A recorded Council decision cannot be changed; an authorised correction supersedes it.")
+
+        elif isinstance(obj, Appeal):
+            if obj not in session.new and (obj in session.deleted or any(_changed(obj, f) for f in ("grounds", "eligibility", "against_decision_id", "decision_case_id", "submitted_by_id", "submitted_at", "application_id"))):
+                raise ImmutableRecordError("A submitted appeal's grounds and eligibility record cannot be changed.")
 
         # ---- Phase 5: committee records ----
         elif isinstance(obj, CommitteeEventRow | ShcProceeding):

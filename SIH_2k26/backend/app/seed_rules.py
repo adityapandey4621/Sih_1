@@ -202,7 +202,9 @@ def main() -> int:
                     source_ids=[demo.id], checklist=_demo_checklist(demo.id),
                     route=_stage_models(route, demo.id, "DEMO ONLY"),
                     deadlines=[DeadlinePolicyIn(policy_key="demo-response-window", label="[DEMO] Response window — duration deliberately not set", deadline_type="INTERNAL_SLA",
-                                                trigger_event="deficiency_notice_issued", source_id=demo.id, clause_ref="DEMO ONLY")],
+                                                trigger_event="deficiency_notice_issued", source_id=demo.id, clause_ref="DEMO ONLY"),
+                               DeadlinePolicyIn(policy_key="demo-appeal-window", label="[DEMO] Appeal window — 7 calendar days, invented for demonstration", deadline_type="INTERNAL_SLA",
+                                                trigger_event="executive_committee_decision_uploaded", duration_value=7, duration_unit="days", calendar_convention="CALENDAR", source_id=demo.id, clause_ref="DEMO ONLY")],
                     row_version=v.row_version), author, None)
                 v = svc.submit_for_review(db, v.id, v.row_version, "DEMO ONLY", author, None, settings)
                 svc.publish(db, v.id, False, "DEMO ONLY — published for development use", approver, None, settings)

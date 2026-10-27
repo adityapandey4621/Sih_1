@@ -22,7 +22,8 @@ from tests.test_notices import publish_changed_version
 
 EVC_C, EVC_W = {Role.EVC_COORDINATOR}, {Role.EVC_MEMBER}
 SHC_C, SHC_W = {Role.SHC_COORDINATOR}, {Role.SHC_MEMBER}
-EVIDENCE_ROLES = EVC_C | EVC_W | SHC_C | SHC_W | {Role.SCRUTINY_OFFICER, Role.NOTICE_ISSUER}
+DECISION_READERS = {Role.EXECUTIVE_COMMITTEE, Role.REGULATION_BUREAU, Role.COUNCIL_MEMBER, Role.SAC_COORDINATOR, Role.SAC_MEMBER}  # Phase 6: hold EVIDENCE_READ for decision / appeal cases; without scope here they get "not found"
+EVIDENCE_ROLES = EVC_C | EVC_W | SHC_C | SHC_W | {Role.SCRUTINY_OFFICER, Role.NOTICE_ISSUER} | DECISION_READERS
 ID = "00000000-0000-4000-8000-000000000001"
 OBS = {"status": "OBSERVED", "note": "Seen as described.", "row_version": None}
 SCHED = {"start_local": "2031-01-01T10:00", "timezone": "Asia/Kolkata", "mode": "ONLINE", "access_details": "x", "idempotency_key": "matrix-key-0001"}

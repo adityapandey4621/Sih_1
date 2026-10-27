@@ -22,7 +22,10 @@ class Role(StrEnum):
     SHC_COORDINATOR = "shc_coordinator"  # prepares SHC cases, requests compliance, coordinates hearings (application capability)
     SHC_MEMBER = "shc_member"
     EXECUTIVE_COMMITTEE = "executive_committee"
+    SAC_COORDINATOR = "sac_coordinator"  # arranges the SAC review of an appeal (application capability)
     SAC_MEMBER = "sac_member"
+    REGULATION_BUREAU = "regulation_bureau"  # records Bureau observations, issues the official outcome (application capability, not a claimed AICTE designation)
+    COUNCIL_MEMBER = "council_member"  # records Council ratification and Council decisions on appeals (application capability)
     RULES_ADMIN = "rules_admin"
     RULES_APPROVER = "rules_approver"
     AUDITOR = "auditor"
@@ -75,6 +78,18 @@ class Permission(StrEnum):
     SHC_RESPOND = "shc:respond"  # institution: answer a compliance request for its own application
     COMMITTEE_STATUS_OWN = "committee:status_own"  # institution: see EVC / SHC status of its own applications
 
+    # Phase 6 - decisions and appeals. No role holds all of them; none is granted to an administrator.
+    DECISION_QUEUE = "decision:queue"  # see decision cases (read-only records)
+    DECISION_OBSERVE = "decision:observe"  # Regulation Bureau: record observations
+    DECISION_RECORD = "decision:record"  # Executive Committee: record or correct a decision
+    DECISION_ISSUE = "decision:issue"  # Regulation Bureau: issue the official outcome and close the case
+    COUNCIL_RECORD = "council:record"  # Council: record ratification and Council decisions on appeals
+    DECISION_READ_OWN = "decision:read_own"  # institution: official status of its own applications
+    APPEAL_SUBMIT = "appeal:submit"  # institution: submit one appeal for its own application
+    SAC_QUEUE = "sac:queue"
+    SAC_COORDINATE = "sac:coordinate"
+    SAC_WORK = "sac:work"
+
     # Phase 2 — rule catalogue
     RULES_READ = "rules:read"
     RULES_EDIT = "rules:edit"  # author: create/edit drafts, submit for review
@@ -94,6 +109,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.NOTICE_RESPOND,
             Permission.SHC_RESPOND,
             Permission.COMMITTEE_STATUS_OWN,
+            Permission.DECISION_READ_OWN,
+            Permission.APPEAL_SUBMIT,
             Permission.NOTIFICATIONS_READ,
         }
     ),
@@ -123,8 +140,11 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.EVC_MEMBER: frozenset({Permission.DASHBOARD_EVC_MEMBER, Permission.EVC_QUEUE, Permission.EVC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.SHC_COORDINATOR: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.SHC_MEMBER: frozenset({Permission.DASHBOARD_SHC, Permission.SHC_QUEUE, Permission.SHC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
-    Role.EXECUTIVE_COMMITTEE: frozenset({Permission.DASHBOARD_EXECUTIVE}),
-    Role.SAC_MEMBER: frozenset({Permission.DASHBOARD_APPEALS}),
+    Role.EXECUTIVE_COMMITTEE: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.DECISION_RECORD, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.REGULATION_BUREAU: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.DECISION_OBSERVE, Permission.DECISION_ISSUE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.COUNCIL_MEMBER: frozenset({Permission.DASHBOARD_EXECUTIVE, Permission.DECISION_QUEUE, Permission.COUNCIL_RECORD, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.SAC_COORDINATOR: frozenset({Permission.DASHBOARD_APPEALS, Permission.SAC_QUEUE, Permission.SAC_COORDINATE, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
+    Role.SAC_MEMBER: frozenset({Permission.DASHBOARD_APPEALS, Permission.SAC_QUEUE, Permission.SAC_WORK, Permission.EVIDENCE_READ, Permission.NOTIFICATIONS_READ}),
     Role.RULES_ADMIN: frozenset({Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_EDIT}),
     Role.RULES_APPROVER: frozenset({Permission.DASHBOARD_RULES, Permission.RULES_READ, Permission.RULES_APPROVE}),
     Role.AUDITOR: frozenset({Permission.DASHBOARD_AUDIT, Permission.AUDIT_READ, Permission.RULES_READ}),
@@ -148,7 +168,10 @@ ROLE_LABELS: dict[Role, str] = {
     Role.SHC_COORDINATOR: "SHC coordinator",
     Role.SHC_MEMBER: "SHC member",
     Role.EXECUTIVE_COMMITTEE: "Executive Committee",
+    Role.SAC_COORDINATOR: "SAC coordinator",
     Role.SAC_MEMBER: "SAC member",
+    Role.REGULATION_BUREAU: "Regulation Bureau",
+    Role.COUNCIL_MEMBER: "Council member",
     Role.RULES_ADMIN: "Rules administrator",
     Role.RULES_APPROVER: "Rules approver",
     Role.AUDITOR: "Auditor",

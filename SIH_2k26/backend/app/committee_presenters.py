@@ -40,7 +40,7 @@ STATE_LABELS = {
     "PREPARATION": "Being prepared by the coordinator", "AWAITING_COMPLIANCE": "Awaiting institution compliance", "COMPLIANCE_RECEIVED": "Compliance received — awaiting review",
     "UNDER_REVIEW": "Under review", "RECOMMENDATION_SUBMITTED": "Recommendation submitted — awaiting stage completion",
 }
-COMPLETED_LABEL = {"EVC": "EVC stage completed (not an approval)", "SHC": "SHC stage completed (not a decision)"}
+COMPLETED_LABEL = {"EVC": "EVC stage completed (not an approval)", "SHC": "SHC stage completed (not a decision)", "SAC": "SAC stage completed (the Council decides)"}
 INSTITUTION_LABELS = {
     "EVC": {"SELECTION_PENDING": "Being arranged", "SELECTION_REQUESTED": "Being arranged", "SCHEDULE_PENDING": "Visit date being arranged", "SCHEDULED": "Visit scheduled", "VISIT_IN_PROGRESS": "Visit under way",
             "REPORT_SUBMITTED": "Visit finished; the report is being finalised", "COMPLETED": "Expert visit stage complete"},
@@ -85,7 +85,7 @@ def _visible(db: Session, user: User, stage: CommitteeStage):
     from app.rbac import permissions_for
 
     perms = permissions_for(user.role)
-    coord = Permission.EVC_COORDINATE if stage == CommitteeStage.EVC else Permission.SHC_COORDINATE
+    coord = {CommitteeStage.EVC: Permission.EVC_COORDINATE, CommitteeStage.SHC: Permission.SHC_COORDINATE, CommitteeStage.SAC: Permission.SAC_COORDINATE}[stage]
     q = select(CommitteeCase).where(CommitteeCase.stage == stage.value)
     if coord in perms:
         return q, "coordinator"
@@ -159,7 +159,7 @@ def _policy_view(case: CommitteeCase) -> dict | None:
     c = p["content"]
     return {"id": p["id"], "key": p["key"], "version": p["version"], "classification": p["classification"], "title": p["title"], "banner": cpolicy.verification_note(p), "sources": p["sources"],
             "content_hash": p["content_hash"], "modes": cpolicy.mode_options(p, CommitteeStage(case.stage)), "unverified_modes": c.get("visit", {}).get("unverified_modes", []),
-            "checklist": c.get("checklist", []), "report_sections": c.get("report", {}).get("sections", []), "shc": c.get("shc"), "composition": c.get("composition")}
+            "checklist": c.get("checklist", []), "report_sections": c.get("report", {}).get("sections", []), "shc": c.get("shc"), "sac": c.get("sac"), "composition": c.get("composition")}
 
 
 def _report_out(r: CommitteeReport, full: bool = True) -> dict:
@@ -209,6 +209,22 @@ def actions_for(db: Session, case: CommitteeCase, scope, avail: selection.Availa
                 a.append("reselect")
             if s == CState.REPORT_SUBMITTED:
                 a += ["complete", "open_amendment"]
+        elif stage == CommitteeStage.SAC:
+            pending = db.scalar(select(SelectionRequest.id).where(SelectionRequest.case_id == case.id, SelectionRequest.status == "REQUESTED"))
+            if s == CState.SELECTION_PENDING and avail.available:
+                a.append("request_selection")
+            if s == CState.SELECTION_REQUESTED or pending:
+                a += ["refresh_selection", "cancel_selection"]
+            if s == CState.UNDER_REVIEW and core_policy(case).get("sac", {}).get("hearing") in ("OPTIONAL", "REQUIRED") and not blocked & {"no_committee_policy"}:
+                if sch is None:
+                    a.append("propose_schedule")
+                else:
+                    a.append("reschedule")
+                    if sch.status == "PROPOSED":
+                        a.append("confirm_schedule")
+                    a.append("cancel_schedule")
+            if s == CState.RECOMMENDATION_SUBMITTED:
+                a += ["complete", "open_amendment"]
         else:
             if s in (CState.PREPARATION, CState.AWAITING_COMPLIANCE, CState.COMPLIANCE_RECEIVED, CState.UNDER_REVIEW):
                 if avail.available and not db.scalar(select(SelectionRequest.id).where(SelectionRequest.case_id == case.id, SelectionRequest.status == "REQUESTED")):
@@ -241,6 +257,9 @@ def actions_for(db: Session, case: CommitteeCase, scope, avail: selection.Availa
                 a.append("start_visit")
             if s == CState.VISIT_IN_PROGRESS:
                 a += ["record_observation", "add_evidence", "save_report", "submit_report"]
+        elif stage == CommitteeStage.SAC:
+            if s == CState.UNDER_REVIEW:
+                a += ["record_proceeding", "save_recommendation", "submit_recommendation"]
         elif s == CState.UNDER_REVIEW:
             a += ["record_finding", "edit_finding", "record_proceeding", "save_recommendation", "submit_recommendation"]
     return a
@@ -255,7 +274,7 @@ def outstanding(case: CommitteeCase, scope, sch: CommitteeSchedule | None, n_ass
             CState.SELECTION_PENDING: ["Request an authorised selection of members."], CState.SELECTION_REQUESTED: ["Waiting for the selection result."],
             CState.SCHEDULE_PENDING: ["Confirm the visit schedule." if sch else "Propose a visit schedule."], CState.REPORT_SUBMITTED: ["Complete the EVC stage, or open an amendment."],
             CState.PREPARATION: ["Prepare the requirements the institution is asked to address, then request compliance."], CState.COMPLIANCE_RECEIVED: ["Assign members if needed, then start review."],
-            CState.RECOMMENDATION_SUBMITTED: ["Complete the SHC stage, or open an amendment."],
+            CState.RECOMMENDATION_SUBMITTED: ["Complete the SHC stage, or open an amendment."] if case.stage == "SHC" else ["Complete the SAC stage, or open an amendment. Completing it sends the recommendation to the Council."],
         }.get(s, [])
     if "member" in scope:
         out += {CState.SCHEDULED: ["Start the visit when it takes place."], CState.VISIT_IN_PROGRESS: ["Record observations and submit the report."], CState.UNDER_REVIEW: ["Assess the evidence and submit the recommendation."]}.get(s, [])
@@ -289,6 +308,22 @@ def case_detail(db: Session, user: User, case: CommitteeCase, scope, settings: S
                           "url": e.url, "uploaded_at": e.uploaded_at, "download": f"/api/evc/evidence/{e.id}/download" if e.kind == "FILE" else None} for e in evc_svc.live_evidence(db, case.id)],
             "draft": _report_out(d, False) if (d := evc_svc.draft_report(db, case.id)) else None,
             "versions": [_report_out(r) for r in evc_svc.submitted_reports(db, case.id)],
+        }
+    elif stage == CommitteeStage.SAC:
+        from app.services import appeals as appeals_svc
+        from app.services import sac as sac_svc
+        from app.models_decisions import EcDecision
+
+        ap = sac_svc.appeal_of(db, case)
+        dec = db.get(EcDecision, ap.against_decision_id)
+        detail["sac"] = {
+            "appeal": {"id": ap.id, "status": ap.status, "submitted_at": ap.submitted_at, "grounds": ap.grounds, "eligibility": ap.eligibility, "submitted_by": ap.submitted_by.full_name},
+            "against_decision": {"id": dec.id, "version": dec.version_number, "outcome": dec.outcome, "reasons": dec.reasons, "speaking_order": dec.speaking_order, "decided_at": dec.decided_at},
+            "documents": [{"id": x.id, "kind": x.kind, "description": x.description, "filename": x.original_filename, "size_bytes": x.size_bytes, "sha256": x.sha256, "url": x.url, "uploaded_at": x.uploaded_at,
+                           "download": f"/api/sac/appeal-documents/{x.id}/download" if x.kind == "FILE" else None} for x in appeals_svc.documents(db, ap.id)],
+            "proceedings": [{"id": p.id, "schedule_id": p.schedule_id, "held_at": p.held_at, "participants": p.participants, "text": p.text, "by": p.recorded_by.full_name, "recorded_at": p.recorded_at} for p in sac_svc.proceedings(db, case.id)],
+            "draft": _report_out(d, False) if (d := sac_svc.draft(db, case.id)) else None,
+            "versions": [_report_out(r) for r in sac_svc.submitted(db, case.id)],
         }
     else:
         rounds = shc_svc.rounds(db, case.id)

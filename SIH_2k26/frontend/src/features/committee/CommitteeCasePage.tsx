@@ -10,12 +10,13 @@ import './committee.css'
 import { committeeApi } from './committeeApi'
 import { VisitPanel } from './EvcPanels'
 import { CommitteeStateBadge } from './parts'
+import { AppealPanel, SacReviewPanel } from './SacPanels'
 import { ReviewPanel, RecommendationPanel, RequirementsPanel } from './ShcPanels'
 import { CompletePanel, HistoryPanel, OverviewPanel, RoutePanel, SchedulePanel, SelectionPanel, type PanelCtx } from './SharedPanels'
 import type { CommitteeCaseDetail, Stage } from './types'
 import { useAction } from './useAction'
 
-type Tab = 'overview' | 'documents' | 'arrange' | 'visit' | 'requirements' | 'review' | 'recommendation' | 'history'
+type Tab = 'overview' | 'documents' | 'arrange' | 'visit' | 'requirements' | 'review' | 'recommendation' | 'appeal' | 'history'
 
 function View({ stage, initial, reload }: { stage: Stage; initial: CommitteeCaseDetail; reload: () => Promise<CommitteeCaseDetail | null> }) {
   const [detail, setDetail] = useState(initial)
@@ -25,8 +26,9 @@ function View({ stage, initial, reload }: { stage: Stage; initial: CommitteeCase
   const coordinator = detail.scope.includes('coordinator')
   const loadEvidence = useCallback(() => committeeApi.evidence(stage, detail.id), [stage, detail.id])
 
-  const tabs: [Tab, string][] = [['overview', 'Overview'], ['documents', 'Documents']]
+  const tabs: [Tab, string][] = [['overview', 'Overview'], ...(stage === 'SAC' ? [] : ([['documents', 'Documents']] as [Tab, string][]))]
   if (stage === 'EVC') tabs.push(['arrange', coordinator ? 'Selection and schedule' : 'Members and schedule'], ['visit', 'Visit and report'])
+  else if (stage === 'SAC') tabs.push(['appeal', 'The appeal'], ['arrange', 'Members and hearing'], ['recommendation', 'Hearing and recommendation'])
   else tabs.push(['requirements', 'Requirements and compliance'], ['arrange', 'Members and hearing'], ['review', 'Review'], ['recommendation', 'Recommendation'])
   tabs.push(['history', 'History'])
   const [tab, setTab] = useState<Tab>('overview')
@@ -48,7 +50,7 @@ function View({ stage, initial, reload }: { stage: Stage; initial: CommitteeCase
       <PageHeader
         title={sorted.reference}
         description={`${sorted.institution_name} · ${sorted.category_name} · ${sorted.academic_year}`}
-        crumbs={[{ label: 'Workspace', to: '/app' }, { label: stage === 'EVC' ? 'EVC' : 'SHC', to: `/app/${stage === 'EVC' ? (coordinator ? 'evc-coordination' : 'evc-member') : 'shc'}` }, { label: sorted.reference }]}
+        crumbs={[{ label: 'Workspace', to: '/app' }, { label: stage === 'EVC' ? 'EVC' : stage === 'SAC' ? 'Appeals' : 'SHC', to: `/app/${stage === 'EVC' ? (coordinator ? 'evc-coordination' : 'evc-member') : stage === 'SAC' ? 'appeals' : 'shc'}` }, { label: sorted.reference }]}
         actions={<CommitteeStateBadge state={detail.state} label={detail.state_label} />}
       />
       <p className="note">{detail.not_an_approval}</p>
@@ -73,11 +75,13 @@ function View({ stage, initial, reload }: { stage: Stage; initial: CommitteeCase
       {tab === 'overview' && (
         <>
           <OverviewPanel detail={detail} />
-          <RoutePanel {...ctx} />
+          {stage !== 'SAC' && <RoutePanel {...ctx} />}
           {stage === 'EVC' && <CompletePanel {...ctx} label="Completing the stage records that the visit and its report are finished. It starts whatever the approved route says comes next; it does not approve anything." />}
+          {stage === 'SAC' && <CompletePanel {...ctx} label="Completing the stage hands the SAC’s recommendation to the Council. The SAC does not decide the appeal; the Council does." />}
           {stage === 'SHC' && <CompletePanel {...ctx} label="Completing the stage records that the SHC process and its recommendation are finished. It starts whatever the approved route says comes next; it decides nothing." />}
         </>
       )}
+      {tab === 'appeal' && stage === 'SAC' && <AppealPanel ctx={ctx} />}
       {tab === 'documents' && <EvidenceTab caseId={detail.id} focusItem={null} refreshKey={detail.row_version} load={loadEvidence} />}
       {tab === 'arrange' && (
         <>
@@ -89,6 +93,7 @@ function View({ stage, initial, reload }: { stage: Stage; initial: CommitteeCase
       {tab === 'requirements' && stage === 'SHC' && <RequirementsPanel ctx={ctx} />}
       {tab === 'review' && stage === 'SHC' && <ReviewPanel ctx={ctx} />}
       {tab === 'recommendation' && stage === 'SHC' && <RecommendationPanel ctx={ctx} />}
+      {tab === 'recommendation' && stage === 'SAC' && <SacReviewPanel ctx={ctx} />}
       {tab === 'history' && <HistoryPanel detail={detail} />}
     </>
   )
@@ -125,3 +130,4 @@ function CasePage({ stage }: { stage: Stage }) {
 
 export const EvcCasePage = () => <CasePage stage="EVC" />
 export const ShcCasePage = () => <CasePage stage="SHC" />
+export const SacCasePage = () => <CasePage stage="SAC" />

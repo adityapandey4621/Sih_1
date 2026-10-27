@@ -405,6 +405,7 @@ describe('the institution', () => {
       'GET /api/applications/app-1': { body: detail({ status: 'SUBMITTED', editable: false }) },
       'GET /api/applications/app-1/scrutiny': { body: { state: 'SCRUTINY_COMPLETED', state_label: 'Scrutiny completed', explanation: 'Done.', notices: [], events: [], not_an_approval: 'This is not an approval.' } },
       'GET /api/applications/app-1/evidence': { body: { application_id: 'app-1', reference: 'APP-AAAA-BBBB', status: 'SUBMITTED', academic_year: '2026-27', category_name: 'A', institution_name: null, viewer: 'owner', items: [], cross_document_findings: [], disclaimer: '', ocr_available: true, malware_scanner: 'none' } },
+      'GET /api/applications/app-1/decision': { body: { official_status: { state: 'NO_DECISION_CASE', label: 'Not yet at the decision stage' }, decision: null, appeal: null, closed: false, not_a_decision: 'x' } },
       'GET /api/applications/app-1/committee': { body: status({ evc: { ...status().evc!, state: 'COMPLETED', label: 'Expert visit stage complete', report: { version_number: 1, submitted_at: '2026-10-27T11:00:00Z', demo: true, sections: [{ key: 'summary', label: 'Summary of the visit', text: 'The visit took place as scheduled.' }], observations: [{ item_key: 'demo-premises', label: 'DEMO: premises', status: 'OBSERVED', note: 'Matches the application.' }] } }, ready_for_decision_stage: true }) },
     })
     renderApp('/app/applications/app-1')
@@ -479,7 +480,7 @@ describe('navigation', () => {
     const nav = await screen.findByRole('navigation', { name: 'Main' })
     expect(within(nav).getByRole('link', { name: /EVC coordination/ })).toBeInTheDocument()
     expect(within(nav).queryByText('Planned')).not.toBeInTheDocument() // Executive and appeals dashboards are not visible to this role
-    expect(screen.getByText(/Phase 5/)).toBeInTheDocument()
+    expect(screen.getByText(/Phase 6/)).toBeInTheDocument()
   })
 
   it('shows Compliance in the institution’s navigation', async () => {

@@ -125,3 +125,17 @@ G-P4-1 … G-P4-6 and the limits listed at the end of `SCRUTINY.md`. In short: t
 ### Additional verification gaps (Phase 5)
 
 See `COMMITTEE.md`, G-P5-1 … G-P5-9: the December 2025 corrigendum is unverified; the EVC checklist (Annexure-3 / 4) and committee composition are not encoded; the portal selection has no interface; no SHC response period, hearing format or scheduling deadline is established; several release and authority rules are conventions.
+
+## Functional requirements (Phase 6)
+
+- A permission-protected decision queue; a case exists only once every mandatory stage of the frozen route is complete; an incomplete or ambiguous route is blocked and explained.
+- Each case shows the rule version, scrutiny findings, EVC report, SHC recommendation, Regulation Bureau observations, outstanding stages and the audit history.
+- Only authorised decision-makers record a decision; decision-maker, timestamp, reasons, supporting references and rule version are stored; the original and its corrections are preserved; the Council's step is recorded separately.
+- No automatic approval or rejection; no report decides.
+- The institution sees the official status, reason and reference, in-app notifications, and an honest AICTE-sync state (`NOT_CONFIGURED`, `SYNC_PENDING`, `SYNCED`).
+- An appeal is possible only when the frozen rule version and the decision configuration allow it; the deadline is computed from the rule version's own policy; duplicates are prevented; the SAC works the appeal and recommends; the Council records the decision, in that order; the NO branch bypasses the SAC.
+- Backend enforcement for every one of these; administrators hold no decision powers.
+
+### Additional verification gaps (Phase 6)
+
+See `DECISIONS_AND_APPEALS.md`, G-P6-1 … G-P6-11: the December 2025 corrigendum is unverified; the counting convention and cut-off time for the 7-day window are not stated; appealable outcomes, the ratification vocabulary and the Council's appeal outcomes are demo configuration; no OFFICIAL decision policy exists; no letter text is generated; no portal integration; a "further scrutiny / EVC" recommendation does not start a second cycle; appeal files are not malware-scanned.

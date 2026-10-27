@@ -125,3 +125,30 @@ Both prefixes `/api/evc` and `/api/shc` share: `GET /cases` (queue; `state`, `q`
 | `GET /api/committee/decision-handoffs` | coordinators | Applications ready for the later decision stage |
 
 New codes: `selection_unavailable`, `selection_in_progress`, `no_open_selection`, `schedule_exists`, `member_conflict`, `hearing_not_permitted`, `no_members_assigned`, `configuration_blocked`, `no_confirmed_schedule`, `report_incomplete`, `recommendation_incomplete`, `evidence_superseded`, `compliance_not_open`, `compliance_not_permitted`, `compliance_first`, `requirement_issued`, `no_requirements`, `not_awaiting_determination`, `stage_incomplete`, `preceding_stage_incomplete`, `required_stage_incomplete`, `rescrutiny_scope` (Phase 4 correction).
+
+## Phase 6 — decisions, Council steps, appeals, SAC
+
+Responses are built by `app/decision_presenters.py` and `app/committee_presenters.py` (see `DECISIONS_AND_APPEALS.md`). Every mutating call returns the refreshed case. Idempotency keys (`idempotency_key`, 8-80 chars) are required for observations, decisions, issue, Council records and appeals; a replay returns the same record with `X-Idempotent-Replay: true`. Out-of-scope access returns 404 and is audited; a missing permission returns 403.
+
+| Endpoint | Permission | Purpose |
+|---|---|---|
+| `GET /api/decisions/cases` (`state`, `q`, paging) | `decision:queue` | Decision queue (cases exist only after every mandatory stage is complete) |
+| `GET /api/decisions/cases/{id}` | `decision:queue` | Full record: rule version, scrutiny / EVC / SHC / Bureau records, outstanding blockers, history, `allowed_actions` |
+| `GET /api/decisions/cases/{id}/evidence` | `decision:queue` | The Phase 3 evidence package (read-only) |
+| `POST …/observations` | `decision:observe` (Regulation Bureau) | Append an observation |
+| `POST …/decision` | `decision:record` (Executive Committee) | Record the decision; `considered` must confirm every available record; `row_version` required |
+| `POST …/decision/correct` | `decision:record` | Reasoned correction; the original is kept |
+| `POST …/issue` (multipart) | `decision:issue` (Bureau) | Record the official reference and/or PDF; shown to the institution; starts a sync record |
+| `POST …/ratification` | `council:record` | Record the Council's step (correction needs `correction_reason`) |
+| `POST …/close` | `decision:issue` | Close the stage (needs ratification where required, and the appeal run out or decided) |
+| `POST /api/decisions/appeals/{appeal_id}/council-decision` | `council:record` | Council decision on an appeal; only after the SAC stage is complete |
+| `GET /api/decisions/issuances/{id}/download` | `decision:queue` or owning institution | Issued document |
+| `GET /api/applications/{id}/decision` | `decision:read_own` | Institution: official status, issued outcome, appeal eligibility, own appeal, sync truth |
+| `POST /api/applications/{id}/appeal` | `appeal:submit` | Submit the appeal (only if eligibility is `ELIGIBLE`; `409 appeal_not_eligible` / `already_appealed` otherwise) |
+| `POST /api/appeals/{id}/documents` (multipart), `POST …/documents/link`, `GET /api/appeals/documents/{id}/download` | `appeal:submit` (owner) | Supporting evidence while under SAC review |
+| `/api/sac/cases`, `/cases/{id}`, `/assignable`, `…/selection`, `…/schedule…` | `sac:queue` / `sac:coordinate` | Same shapes as the EVC / SHC prefixes |
+| `POST /api/sac/cases/{id}/proceedings`, `PUT …/recommendation`, `POST …/recommendation/submit` | assigned SAC member (`sac:work`) | Hearing records and the recommendation |
+| `POST …/recommendation/amend`, `POST …/complete` | SAC coordinator | Amend / complete the stage (moves the appeal to the Council) |
+| `GET /api/sac/appeal-documents/{id}/download` | `sac:queue` within scope | Appeal evidence |
+
+New permissions: `decision:queue`, `decision:observe`, `decision:record`, `decision:issue`, `council:record`, `decision:read_own`, `appeal:submit`, `sac:queue`, `sac:coordinate`, `sac:work`; dashboards `dashboard:executive` and `dashboard:appeals`. New roles: `regulation_bureau`, `council_member`, `sac_coordinator`, `sac_member` (with the existing `executive_committee`).

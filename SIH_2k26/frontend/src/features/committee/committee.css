@@ -9,3 +9,6 @@
 .schedule-row { display: grid; gap: var(--s-1); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); list-style: none; }
 .schedule-form { display: grid; gap: var(--s-3); margin-top: var(--s-3); }
 .schedule-form .field { max-width: 36rem; }
+
+/* Phase 6: status labels from the server can be long (e.g. an appeal status); they wrap instead of widening a narrow screen. */
+.panel .badge { white-space: normal; max-width: 100%; text-align: left; }

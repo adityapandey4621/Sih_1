@@ -33,7 +33,7 @@ class CommitteePolicy(Base):
     __tablename__ = "committee_policies"
     __table_args__ = (
         UniqueConstraint("key", "version_number"),
-        CheckConstraint("stage IN ('EVC','SHC')", name="ck_cpolicy_stage"),
+        CheckConstraint("stage IN ('EVC','SHC','SAC','DEC')", name="ck_cpolicy_stage"),
         CheckConstraint("classification IN ('DEMO','OFFICIAL')", name="ck_cpolicy_class"),
         CheckConstraint("status IN ('published','retired')", name="ck_cpolicy_status"),
         Index("uq_one_published_policy", "stage", "classification", unique=True, **_where("status = 'published'")),
@@ -57,7 +57,7 @@ class CommitteeCase(Base):
     __tablename__ = "committee_cases"
     __table_args__ = (
         UniqueConstraint("application_id", "stage"),  # one EVC case and one SHC case per application: activation is idempotent
-        CheckConstraint("stage IN ('EVC','SHC')", name="ck_ccase_stage"),
+        CheckConstraint("stage IN ('EVC','SHC','SAC')", name="ck_ccase_stage"),
         CheckConstraint(f"state IN ({_STATES})", name="ck_ccase_state"),
         Index("ix_ccases_stage_state", "stage", "state"),
     )
@@ -228,7 +228,7 @@ class CommitteeReport(Base):
     __tablename__ = "committee_reports"
     __table_args__ = (
         UniqueConstraint("case_id", "kind", "version_number"),
-        CheckConstraint("kind IN ('EVC_REPORT','SHC_RECOMMENDATION')", name="ck_creport_kind"),
+        CheckConstraint("kind IN ('EVC_REPORT','SHC_RECOMMENDATION','SAC_RECOMMENDATION')", name="ck_creport_kind"),
         CheckConstraint("status IN ('DRAFT','SUBMITTED')", name="ck_creport_status"),
         CheckConstraint(
             "(status = 'SUBMITTED') = (submitted_at IS NOT NULL AND submitted_by_id IS NOT NULL AND content_hash IS NOT NULL AND source_snapshot IS NOT NULL)",

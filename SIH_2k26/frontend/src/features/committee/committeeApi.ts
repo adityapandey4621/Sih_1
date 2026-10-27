@@ -87,6 +87,13 @@ export const committeeApi = {
   submitRecommendation: (id: string, idempotency_key: string, row_version: number) => post<D>(`${base('SHC', id)}/recommendation/submit`, { idempotency_key, row_version }),
   amendRecommendation: (id: string, reason: string, row_version: number) => post<D>(`${base('SHC', id)}/recommendation/amend`, { reason, row_version }),
   completeShc: (id: string, summary: string, row_version: number) => post<D>(`${base('SHC', id)}/complete`, { summary, row_version }),
+
+  // SAC (appeals)
+  sacProceeding: (id: string, body: { held_local: string; timezone: string; participants: string; text: string; schedule_id: string | null }) => post<D>(`${base('SAC', id)}/proceedings`, body),
+  sacSaveRecommendation: (id: string, option: string | null, sections: Record<string, string>, row_version: number) => put<D>(`${base('SAC', id)}/recommendation`, { option, sections, row_version }),
+  sacSubmitRecommendation: (id: string, idempotency_key: string, row_version: number) => post<D>(`${base('SAC', id)}/recommendation/submit`, { idempotency_key, row_version }),
+  sacAmendRecommendation: (id: string, reason: string, row_version: number) => post<D>(`${base('SAC', id)}/recommendation/amend`, { reason, row_version }),
+  completeSac: (id: string, summary: string, row_version: number) => post<D>(`${base('SAC', id)}/complete`, { summary, row_version }),
 }
 
 /** Institution side: committee status of its own applications, and SHC compliance. */

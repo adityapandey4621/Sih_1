@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.domain import COMMITTEE_DEMO_BANNER, CommitteeStage
+from app.domain import APPEAL_DEMO_BANNER, COMMITTEE_DEMO_BANNER, DECISION_POLICY_STAGE, CommitteeStage
 from app.models_committee import CommitteePolicy
 
 APH = "AICTE Approval Process Handbook 2024-27 (official PDF supplied by the team)"
@@ -87,8 +87,68 @@ DEMO_SHC: dict = {
     },
 }
 
+# Phase 6. The clause references are real (read in the supplied official handbook); the CONFIGURATION built on them is a demonstration, because
+# which outcomes are appealable, the ratification vocabulary and the Council's appeal outcomes are not fully stated by the handbook.
+DEMO_SAC: dict = {
+    "banner": APPEAL_DEMO_BANNER,
+    "composition": {"min_members": 1, "note": "DEMO ONLY: a minimum invented for the demonstration. The real constitution and selection authority are not configured."},
+    "sac": {
+        "hearing": "OPTIONAL",
+        "hearing_modes": [
+            {"key": "ONLINE", "label": "Online", "verification": "DEMO_ONLY", "requires": ["access_details"], "requires_reason": False, "clause_ref": "DEMO ONLY"},
+            {"key": "PHYSICAL", "label": "Physical (in person)", "verification": "DEMO_ONLY", "requires": ["location"], "requires_reason": True, "clause_ref": "DEMO ONLY"},
+        ],
+        # Ch. I cl. 1.11(d): the SAC either recommends / does not recommend the case to the Council, or recommends scrutiny / EVC.
+        "recommendation_options": [
+            {"key": "RECOMMEND", "label": "Recommend the case to the Council"},
+            {"key": "NOT_RECOMMEND", "label": "Do not recommend the case to the Council"},
+            {"key": "FURTHER_SCRUTINY_OR_EVC", "label": "Recommend further scrutiny or an expert visit"},
+        ],
+        "recommendation_clause_ref": "APH 2024-27 Ch. I cl. 1.11(d); Ch. II cl. 2.24(f)",
+        "recommendation_sections": [
+            {"key": "summary", "label": "Summary of the SAC review", "required": True},
+            {"key": "rationale", "label": "Reasons for the recommendation", "required": True},
+        ],
+    },
+}
+
+DEMO_DEC: dict = {
+    "banner": APPEAL_DEMO_BANNER,
+    "decision": {
+        "outcomes": [
+            {"key": "LOA", "label": "Letter of Approval (LoA)", "requires_speaking_order": False, "clause_ref": "APH 2024-27 Ch. I cl. 1.10(b)"},
+            {"key": "LOD", "label": "Letter of Deficiency (LoD)", "requires_speaking_order": False, "clause_ref": "APH 2024-27 Ch. I cl. 1.10(b)"},
+            {"key": "LOR", "label": "Letter of Rejection (LoR)", "requires_speaking_order": True, "clause_ref": "APH 2024-27 Ch. I cl. 1.10(b): a Speaking Order states the reasons for a rejection"},
+        ],
+        "bureau_observation_required": True,
+        "bureau_clause_ref": "APH 2024-27 Ch. I cl. 1.10(a): the Executive Committee decides after considering the committee's recommendations and the views of the Regulation Bureau",
+    },
+    "ratification": {
+        "required": True,
+        "clause_ref": "APH 2024-27 Ch. I cl. 1.10(a); Ch. II cl. 2.25(a): decisions of the Executive Committee are ratified by the Council",
+        "outcomes": [{"key": "RATIFIED", "label": "Ratified"}, {"key": "NOT_RATIFIED", "label": "Not ratified"}],  # the vocabulary is a demonstration
+        "issue_requires_ratification": False,  # the handbook does not state the order of issue and ratification
+    },
+    "appeal": {
+        "permitted": True,
+        "once_only": True,
+        "appealable_outcomes": ["LOD", "LOR"],  # the handbook says "if aggrieved"; which outcomes qualify is a demonstration setting
+        "clause_ref": "APH 2024-27 Ch. I cl. 1.11(a); Ch. II cl. 2.24(a): an institution aggrieved by the Executive Committee's decision may appeal once to the Council",
+        "council_outcomes": [
+            {"key": "LOA", "label": "Letter of Approval (LoA)", "requires_speaking_order": False},
+            {"key": "LOR", "label": "Letter of Rejection (LoR)", "requires_speaking_order": True},
+        ],
+        "council_clause_ref": "APH 2024-27 Ch. I cl. 1.11(e), (g); Ch. II cl. 2.24(f): the Council's decision is final",
+    },
+}
+
 DEMO_SOURCES = [{"title": COMMITTEE_DEMO_BANNER, "clause_ref": "DEMO ONLY", "verification_status": "DEMO_ONLY"}]
-DEMO_SPECS = {CommitteeStage.EVC: ("demo-evc-policy", "DEMO — EVC visit, checklist and report structure", DEMO_EVC), CommitteeStage.SHC: ("demo-shc-policy", "DEMO — SHC compliance, hearing and recommendation", DEMO_SHC)}
+DEMO_SPECS = {
+    CommitteeStage.EVC: ("demo-evc-policy", "DEMO — EVC visit, checklist and report structure", DEMO_EVC),
+    CommitteeStage.SHC: ("demo-shc-policy", "DEMO — SHC compliance, hearing and recommendation", DEMO_SHC),
+    CommitteeStage.SAC: ("demo-sac-policy", "DEMO — SAC review, hearing and recommendation", DEMO_SAC),
+}
+DEMO_DEC_SPEC = ("demo-decision-policy", "DEMO — Executive Committee decision, Council ratification and appeal", DEMO_DEC)
 
 
 def content_hash(content: dict) -> str:
@@ -98,10 +158,10 @@ def content_hash(content: dict) -> str:
 def seed_demo_policies(db: Session) -> list[str]:
     """Idempotent: publish the DEMO policies if they are absent. Used by the seed command and by tests."""
     made = []
-    for stage, (key, title, content) in DEMO_SPECS.items():
-        if db.scalar(select(CommitteePolicy.id).where(CommitteePolicy.stage == stage.value, CommitteePolicy.classification == "DEMO", CommitteePolicy.status == "published")):
+    for stage, (key, title, content) in [(s.value, spec) for s, spec in DEMO_SPECS.items()] + [(DECISION_POLICY_STAGE, DEMO_DEC_SPEC)]:
+        if db.scalar(select(CommitteePolicy.id).where(CommitteePolicy.stage == stage, CommitteePolicy.classification == "DEMO", CommitteePolicy.status == "published")):
             continue
-        db.add(CommitteePolicy(stage=stage.value, key=key, version_number=1, classification="DEMO", status="published", title=title, content=content, sources=DEMO_SOURCES, content_hash=content_hash(content)))
+        db.add(CommitteePolicy(stage=stage, key=key, version_number=1, classification="DEMO", status="published", title=title, content=content, sources=DEMO_SOURCES, content_hash=content_hash(content)))
         made.append(key)
     db.flush()
     return made
@@ -110,14 +170,14 @@ def seed_demo_policies(db: Session) -> list[str]:
 # ---- applying a policy to a case ---------------------------------------------------------------------
 
 
-def applicable(db: Session, stage: CommitteeStage, config: dict, settings: Settings) -> CommitteePolicy | None:
+def applicable(db: Session, stage: "CommitteeStage | str", config: dict, settings: Settings) -> CommitteePolicy | None:
     """The published policy for this stage that suits the case's rule-set classification. DEMO policies serve only DEMO cases, and only where demo rules are on."""
     classification = config.get("rule_set", {}).get("classification")
     if classification == "DEMO" and not settings.demo_rules_enabled:
         return None
     if classification not in ("DEMO", "OFFICIAL"):
         return None
-    return db.scalar(select(CommitteePolicy).where(CommitteePolicy.stage == stage.value, CommitteePolicy.classification == classification, CommitteePolicy.status == "published"))
+    return db.scalar(select(CommitteePolicy).where(CommitteePolicy.stage == getattr(stage, "value", stage), CommitteePolicy.classification == classification, CommitteePolicy.status == "published"))
 
 
 def freeze(policy: CommitteePolicy) -> dict:
@@ -144,6 +204,10 @@ def blockers_for(stage: CommitteeStage, snapshot: dict | None) -> list[dict]:
             out.append({"code": "no_checklist", "message": "No visit checklist is configured, so observations cannot be recorded against one."})
         if not c.get("report", {}).get("sections"):
             out.append({"code": "no_report_structure", "message": "No report structure is configured, so a report cannot be validated or submitted."})
+    elif stage == CommitteeStage.SAC:
+        s = c.get("sac", {})
+        if not s.get("recommendation_sections") or not s.get("recommendation_options"):
+            out.append({"code": "no_recommendation_structure", "message": "No SAC recommendation structure is configured, so a recommendation cannot be validated or submitted."})
     else:
         s = c.get("shc", {})
         if s.get("compliance_submission") not in ("PERMITTED", "NOT_PERMITTED"):
@@ -170,4 +234,19 @@ def response_period(snapshot: dict | None, config: dict) -> dict:
 
 def mode_options(snapshot: dict | None, stage: CommitteeStage) -> list[dict]:
     c = (snapshot or {}).get("content", {})
-    return list(c.get("visit", {}).get("modes", [])) if stage == CommitteeStage.EVC else list(c.get("shc", {}).get("hearing_modes", []))
+    if stage == CommitteeStage.EVC:
+        return list(c.get("visit", {}).get("modes", []))
+    if stage == CommitteeStage.SAC:
+        return list(c.get("sac", {}).get("hearing_modes", []))
+    return list(c.get("shc", {}).get("hearing_modes", []))
+
+
+def decision_blockers(snapshot: dict | None) -> list[dict]:
+    """What is missing for the Executive Committee's decision. The appeal rules are checked separately, when an appeal is attempted."""
+    if snapshot is None:
+        return [{"code": "no_decision_policy", "message": "No verified decision configuration (the outcomes the Executive Committee may record, whether Bureau observations and Council ratification are required) applies to this application's rule set. Nothing is assumed in its place; it is recorded for the rule configuration reviewers."}]
+    d = snapshot["content"].get("decision", {})
+    out: list[dict] = []
+    if not d.get("outcomes"):
+        out.append({"code": "no_outcomes", "message": "The configuration lists no outcome the Executive Committee may record."})
+    return out

@@ -41,7 +41,8 @@ DEMO_SELECTION_NOTICE = "Demonstration selection: a coordinator recorded fiction
 NOT_CONNECTED_NOTICE = (
     "Committee members must come from the authorised AICTE selection process. No interface to that process is connected to this system, so no selection can be requested or recorded here."
 )
-MEMBER_ROLE = {CommitteeStage.EVC: Role.EVC_MEMBER, CommitteeStage.SHC: Role.SHC_MEMBER}
+MEMBER_ROLE = {CommitteeStage.EVC: Role.EVC_MEMBER, CommitteeStage.SHC: Role.SHC_MEMBER, CommitteeStage.SAC: Role.SAC_MEMBER}
+_STATE_MOVES = (CommitteeStage.EVC, CommitteeStage.SAC)  # stages where selecting members moves the case's state (SHC only attaches members)
 
 
 @dataclass
@@ -167,7 +168,7 @@ def request_selection(
             raise conflict("idempotency_key_reused", "That key was used for a different case.")
         return core.lock_case(db, case.id), prior, True
     case = core.lock_case(db, case.id)
-    open_states = _EVC_OPEN if stage == CommitteeStage.EVC else _SHC_OPEN
+    open_states = _EVC_OPEN if stage in _STATE_MOVES else _SHC_OPEN
     core.require_state(case, *open_states)
     if db.scalar(select(SelectionRequest.id).where(SelectionRequest.case_id == case.id, SelectionRequest.status == SelectionStatus.REQUESTED.value)) is not None:
         raise conflict("selection_in_progress", "A selection request for this case is already waiting for a result.")
@@ -194,7 +195,7 @@ def request_selection(
     db.add(req)
     db.flush()
     from_state = case.state
-    if stage == CommitteeStage.EVC:
+    if stage in _STATE_MOVES:
         core.transition(db, case, CAction.REQUEST_SELECTION)
     core.log_event(db, case, actor, "selection_requested", request=request, object_type="selection_request", object_id=req.id, from_state=from_state, to_state=case.state,
                    detail={"request_ref": req.request_ref, "provider": provider.mode, "demo": provider.is_demo})
@@ -244,15 +245,19 @@ def apply_result(db: Session, case: CommitteeCase, req: SelectionRequest, result
             if not db.scalar(select(CommitteeAssignment.id).where(CommitteeAssignment.case_id == case.id, CommitteeAssignment.user_id == u.id, CommitteeAssignment.revoked_at.is_(None))):
                 db.add(CommitteeAssignment(case_id=case.id, user_id=u.id, selection_request_id=req.id, source=req.provider, is_demo=req.is_demo))
         db.flush()
-        if stage == CommitteeStage.EVC:
+        if stage in _STATE_MOVES:
             core.transition(db, case, CAction.RECORD_SELECTION)
+            if stage == CommitteeStage.SAC:
+                from app.services import sac
+
+                sac.ensure_draft(db, case, actor)  # the review begins when members are recorded
         else:
             core.touch(db, case)
         core.log_event(db, case, actor, "selection_recorded", request=request, object_type="selection_request", object_id=req.id, from_state=from_state, to_state=case.state,
                        detail={"request_ref": req.request_ref, "provider": req.provider, "demo": req.is_demo, "members": [str(u.id) for u in members], "source": source})
         ctexts.selection_recorded(db, case, app, req.request_ref, [u.id for u in members], req.is_demo)
     else:
-        if stage == CommitteeStage.EVC and case.state == CState.SELECTION_REQUESTED.value:
+        if stage in _STATE_MOVES and case.state == CState.SELECTION_REQUESTED.value:
             core.transition(db, case, CAction.SELECTION_FAILED)
         else:
             core.touch(db, case)
@@ -294,7 +299,7 @@ def cancel_request(db: Session, actor: User, case_id: uuid.UUID, stage: Committe
     if res.rowcount != 1:
         raise conflict("selection_already_resolved", "This selection request already has a result.")
     from_state = case.state
-    if stage == CommitteeStage.EVC:
+    if stage in _STATE_MOVES:
         core.transition(db, case, CAction.SELECTION_FAILED)
     else:
         core.touch(db, case)

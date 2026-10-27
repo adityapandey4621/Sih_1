@@ -33,7 +33,7 @@ _SHC_OPEN = (CState.PREPARATION, CState.AWAITING_COMPLIANCE, CState.COMPLIANCE_R
 
 
 def kind_for(stage: CommitteeStage) -> ScheduleKind:
-    return ScheduleKind.VISIT if stage == CommitteeStage.EVC else ScheduleKind.HEARING
+    return ScheduleKind.VISIT if stage == CommitteeStage.EVC else ScheduleKind.HEARING  # an SHC or SAC sitting is a hearing
 
 
 def active(db: Session, case_id: uuid.UUID) -> CommitteeSchedule | None:
@@ -86,8 +86,8 @@ def _gate(db: Session, case: CommitteeCase, stage: CommitteeStage) -> None:
         core.require_state(case, CState.SCHEDULE_PENDING, CState.SCHEDULED)
         core.require_no_blockers(case, "no_committee_policy", "no_visit_modes")
     else:
-        core.require_state(case, *_SHC_OPEN)
-        h = core.policy(case).get("content", {}).get("shc", {}).get("hearing")
+        core.require_state(case, CState.UNDER_REVIEW) if stage == CommitteeStage.SAC else core.require_state(case, *_SHC_OPEN)
+        h = core.policy(case).get("content", {}).get("sac" if stage == CommitteeStage.SAC else "shc", {}).get("hearing")
         if core.policy(case) == {}:
             core.require_no_blockers(case, "no_committee_policy")
         if h not in ("OPTIONAL", "REQUIRED"):
@@ -176,6 +176,8 @@ def confirm(db: Session, actor: User, case_id: uuid.UUID, stage: CommitteeStage,
         raise conflict("stale_version", "This schedule was changed since you opened it. Reload it to see the latest.")
     if stage == CommitteeStage.EVC:
         core.require_state(case, CState.SCHEDULE_PENDING)
+    elif stage == CommitteeStage.SAC:
+        core.require_state(case, CState.UNDER_REVIEW)
     else:
         core.require_state(case, *_SHC_OPEN)
     now = utcnow()

@@ -28,6 +28,10 @@ const EvcQueuePage = lazy(() => import('../features/committee/QueuePage').then((
 const ShcQueuePage = lazy(() => import('../features/committee/QueuePage').then((m) => ({ default: m.ShcQueuePage })))
 const EvcCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.EvcCasePage })))
 const ShcCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.ShcCasePage })))
+const DecisionQueuePage = lazy(() => import('../features/decisions/DecisionQueuePage'))
+const DecisionCasePage = lazy(() => import('../features/decisions/DecisionCasePage'))
+const SacQueuePage = lazy(() => import('../features/committee/QueuePage').then((m) => ({ default: m.SacQueuePage })))
+const SacCasePage = lazy(() => import('../features/committee/CommitteeCasePage').then((m) => ({ default: m.SacCasePage })))
 const ComplianceListPage = lazy(() => import('../features/committee/InstitutionPanels').then((m) => ({ default: m.ComplianceListPage })))
 const CompliancePage = lazy(() => import('../features/committee/InstitutionPanels'))
 const RulesCatalogPage = lazy(() => import('../features/rules/RulesCatalogPage'))
@@ -94,6 +98,11 @@ export const routes = [
               { path: 'evc/:id', element: guarded('evc:queue', <EvcCasePage />) },
               { path: 'shc', element: guarded('shc:queue', <ShcQueuePage />) },
               { path: 'shc/:id', element: guarded('shc:queue', <ShcCasePage />) },
+              // Executive Committee decisions and SAC appeals (Phase 6): every call is checked again by the backend
+              { path: 'executive', element: guarded('decision:queue', <DecisionQueuePage />) },
+              { path: 'decisions/:id', element: guarded('decision:queue', <DecisionCasePage />) },
+              { path: 'appeals', element: guarded('sac:queue', <SacQueuePage />) },
+              { path: 'sac/:id', element: guarded('sac:queue', <SacCasePage />) },
               // Institution: SHC compliance
               { path: 'compliance', element: guarded('committee:status_own', <ComplianceListPage />) },
               { path: 'compliance/:id', element: guarded('shc:respond', <CompliancePage />) },

@@ -1,6 +1,6 @@
 /** Shapes returned by the EVC / SHC endpoints (backend/app/committee_presenters.py). Wording such as state labels comes from the server. */
 
-export type Stage = 'EVC' | 'SHC'
+export type Stage = 'EVC' | 'SHC' | 'SAC'
 
 export type CommitteeState =
   | 'SELECTION_PENDING'
@@ -135,6 +135,12 @@ export interface PolicyView {
     recommendation_options: { key: string; label: string }[]
     recommendation_sections: { key: string; label: string; required: boolean }[]
   } | null
+  sac?: {
+    hearing: 'OPTIONAL' | 'REQUIRED' | 'NOT_APPLICABLE' | null
+    hearing_modes: ModeOption[]
+    recommendation_options: { key: string; label: string }[]
+    recommendation_sections: { key: string; label: string; required: boolean }[]
+  } | null
   composition: { min_members: number; note: string } | null
 }
 
@@ -167,7 +173,7 @@ export interface EvidenceRow {
 
 export interface ReportVersion {
   id: string
-  kind: 'EVC_REPORT' | 'SHC_RECOMMENDATION'
+  kind: 'EVC_REPORT' | 'SHC_RECOMMENDATION' | 'SAC_RECOMMENDATION'
   version_number: number
   status: 'DRAFT' | 'SUBMITTED'
   content: { sections?: Record<string, string>; option?: string | null }
@@ -297,6 +303,14 @@ export interface CommitteeCaseDetail {
   outstanding_actions: string[]
   not_an_approval: string
   evc?: { observations: Observation[]; evidence: EvidenceRow[]; draft: ReportVersion | null; versions: ReportVersion[] }
+  sac?: {
+    appeal: { id: string; status: string; submitted_at: string; grounds: string; eligibility: { state: string; clause_ref: string | null; deadline_at: string | null; message: string }; submitted_by: string }
+    against_decision: { id: string; version: number; outcome: string; reasons: string; speaking_order: string | null; decided_at: string }
+    documents: { id: string; kind: 'FILE' | 'LINK'; description: string; filename: string | null; size_bytes: number | null; sha256: string | null; url: string | null; uploaded_at: string; download: string | null }[]
+    proceedings: Proceeding[]
+    draft: ReportVersion | null
+    versions: ReportVersion[]
+  }
   shc?: { shortcomings: Shortcoming[]; prepared: Requirement[]; rounds: Round[]; findings: ShcFinding[]; proceedings: Proceeding[]; draft: ReportVersion | null; versions: ReportVersion[] }
 }
 

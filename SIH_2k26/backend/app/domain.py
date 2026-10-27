@@ -340,6 +340,7 @@ STAGE_KEYS_COMBINED_SHC = frozenset({"sac-shc-aa"})
 class CommitteeStage(StrEnum):
     EVC = "EVC"
     SHC = "SHC"
+    SAC = "SAC"  # Phase 6: the Standing Appellate Committee, activated only by an eligible appeal (never by the route engine)
 
 
 def committee_stage_for(stage_key: str | None) -> "CommitteeStage | None":
@@ -409,10 +410,18 @@ COMMITTEE_TRANSITIONS: dict[tuple[CommitteeStage, CState, CAction], CState] = {
     (CommitteeStage.SHC, _C.UNDER_REVIEW, _A.SUBMIT_RECOMMENDATION): _C.RECOMMENDATION_SUBMITTED,
     (CommitteeStage.SHC, _C.RECOMMENDATION_SUBMITTED, _A.OPEN_AMENDMENT): _C.UNDER_REVIEW,
     (CommitteeStage.SHC, _C.RECOMMENDATION_SUBMITTED, _A.COMPLETE): _C.COMPLETED,
+    # SAC (Phase 6): members are selected, the case is reviewed (a hearing is optional), a recommendation is submitted, the stage completes
+    (CommitteeStage.SAC, _C.SELECTION_PENDING, _A.REQUEST_SELECTION): _C.SELECTION_REQUESTED,
+    (CommitteeStage.SAC, _C.SELECTION_PENDING, _A.RECORD_SELECTION): _C.UNDER_REVIEW,
+    (CommitteeStage.SAC, _C.SELECTION_REQUESTED, _A.RECORD_SELECTION): _C.UNDER_REVIEW,
+    (CommitteeStage.SAC, _C.SELECTION_REQUESTED, _A.SELECTION_FAILED): _C.SELECTION_PENDING,
+    (CommitteeStage.SAC, _C.UNDER_REVIEW, _A.SUBMIT_RECOMMENDATION): _C.RECOMMENDATION_SUBMITTED,
+    (CommitteeStage.SAC, _C.RECOMMENDATION_SUBMITTED, _A.OPEN_AMENDMENT): _C.UNDER_REVIEW,
+    (CommitteeStage.SAC, _C.RECOMMENDATION_SUBMITTED, _A.COMPLETE): _C.COMPLETED,
 }
 EVC_STATES = (_C.SELECTION_PENDING, _C.SELECTION_REQUESTED, _C.SCHEDULE_PENDING, _C.SCHEDULED, _C.VISIT_IN_PROGRESS, _C.REPORT_SUBMITTED, _C.COMPLETED)
 SHC_STATES = (_C.PREPARATION, _C.AWAITING_COMPLIANCE, _C.COMPLIANCE_RECEIVED, _C.UNDER_REVIEW, _C.RECOMMENDATION_SUBMITTED, _C.COMPLETED)
-INITIAL_STATE = {CommitteeStage.EVC: _C.SELECTION_PENDING, CommitteeStage.SHC: _C.PREPARATION}
+INITIAL_STATE = {CommitteeStage.EVC: _C.SELECTION_PENDING, CommitteeStage.SHC: _C.PREPARATION, CommitteeStage.SAC: _C.SELECTION_PENDING}
 
 
 class SelectionMode(StrEnum):
@@ -457,6 +466,7 @@ class ObservationStatus(StrEnum):
 class ReportKind(StrEnum):
     EVC_REPORT = "EVC_REPORT"
     SHC_RECOMMENDATION = "SHC_RECOMMENDATION"
+    SAC_RECOMMENDATION = "SAC_RECOMMENDATION"
 
 
 class ReportStatus(StrEnum):
@@ -505,3 +515,99 @@ class CommitteeEvent(StrEnum):
 
 
 COMMITTEE_DEMO_BANNER = "DEMO ONLY — fictional committee configuration. Not an AICTE checklist, composition or process."
+
+
+# ---- decisions, ratification, appeals (Phase 6) ------------------------------------------------------------
+# Three different authorities, never merged (APH 2024-27):
+#   Executive Committee  decides (Ch. I cl. 1.10; Ch. II cl. 2.23.3, 2.25) after considering the committee records and the Regulation Bureau's views
+#   Council              ratifies the Executive Committee's decisions (cl. 1.10(a), 2.25(a)) and gives the FINAL decision on an appeal (cl. 1.11(e), 2.24(f))
+#   SAC                  hears an appeal against the Executive Committee's decision and recommends to the Council (cl. 1.11, 2.24)
+# This software records what those bodies decide. It never decides, and no committee report or recommendation turns into a decision by itself.
+
+DECISION_POLICY_STAGE = "DEC"  # committee_policies.stage for decision, ratification and appeal configuration
+APPEAL_TRIGGER_DECISION_UPLOADED = "executive_committee_decision_uploaded"  # Ch. II cl. 2.24(a): 7 days from the date of uploading the decision
+APPEAL_TRIGGER_LOD_ISSUED = "letter_of_deficiency_issued"  # Ch. I cl. 1.11(a): 7 days from the date of issue of the LoD
+
+
+class DecisionState(StrEnum):
+    AWAITING_OBSERVATIONS = "AWAITING_OBSERVATIONS"  # in the queue; the Regulation Bureau's observations are not yet recorded
+    READY_FOR_DECISION = "READY_FOR_DECISION"  # every route stage is complete and the observations are in: the Executive Committee may decide
+    DECIDED = "DECIDED"  # a decision is recorded but not yet issued to the institution
+    ISSUED = "ISSUED"  # the official outcome was issued to the institution
+    CLOSED = "CLOSED"  # no further step is open: handed to the later post-decision stage
+
+
+class DecisionAction(StrEnum):
+    OBSERVE = "observe"
+    RECORD = "record"
+    ISSUE = "issue"
+    REOPEN_FOR_ISSUE = "reopen_for_issue"  # a correction after issue needs a fresh issue
+    CLOSE = "close"
+
+
+_D = DecisionState
+DECISION_TRANSITIONS: dict[tuple[DecisionState, DecisionAction], DecisionState] = {
+    (_D.AWAITING_OBSERVATIONS, DecisionAction.OBSERVE): _D.READY_FOR_DECISION,
+    (_D.READY_FOR_DECISION, DecisionAction.RECORD): _D.DECIDED,
+    (_D.DECIDED, DecisionAction.ISSUE): _D.ISSUED,
+    (_D.ISSUED, DecisionAction.REOPEN_FOR_ISSUE): _D.DECIDED,
+    (_D.ISSUED, DecisionAction.CLOSE): _D.CLOSED,
+}
+
+
+class DecisionOutcome(StrEnum):
+    """Executive Committee outputs named in cl. 1.10(b). The configuration lists which of them a rule set offers."""
+
+    LOA = "LOA"  # Letter of Approval (Extension of Approval under Chapter II)
+    LOD = "LOD"  # Letter of Deficiency
+    LOR = "LOR"  # Letter of Rejection (with a speaking order stating the reasons)
+
+
+class DecisionKind(StrEnum):
+    ORIGINAL = "ORIGINAL"
+    CORRECTION = "CORRECTION"  # a new version by an authorised person with a reason; the earlier version stays
+
+
+class CouncilKind(StrEnum):
+    RATIFICATION = "RATIFICATION"
+    APPEAL_DECISION = "APPEAL_DECISION"
+
+
+class AppealStatus(StrEnum):
+    UNDER_SAC_REVIEW = "UNDER_SAC_REVIEW"  # submitted; the SAC case exists
+    AWAITING_COUNCIL_DECISION = "AWAITING_COUNCIL_DECISION"  # the SAC stage is complete; its recommendation is with the Council
+    COUNCIL_DECIDED = "COUNCIL_DECIDED"  # the Council's decision is recorded (final under the handbook)
+
+
+class AppealEligibility(StrEnum):
+    ELIGIBLE = "ELIGIBLE"
+    NOT_ISSUED = "NOT_ISSUED"  # no official outcome has been issued to appeal against
+    OUTCOME_NOT_APPEALABLE = "OUTCOME_NOT_APPEALABLE"  # the configuration does not list this outcome as appealable
+    WINDOW_CLOSED = "WINDOW_CLOSED"
+    ALREADY_APPEALED = "ALREADY_APPEALED"  # an appeal is allowed once
+    NOT_PERMITTED = "NOT_PERMITTED"  # the configuration does not permit appeals
+    BLOCKED_BY_CONFIGURATION = "BLOCKED_BY_CONFIGURATION"  # no verified configuration states the appeal rules or the deadline
+
+
+class SyncStatus(StrEnum):
+    NOT_CONFIGURED = "NOT_CONFIGURED"  # no authorised integration exists: nothing was sent, and nothing is claimed
+    SYNC_PENDING = "SYNC_PENDING"  # an attempt failed or is outstanding; it will be retried
+    SYNCED = "SYNCED"  # the external system CONFIRMED receipt
+
+
+class DecisionEvent(StrEnum):
+    CASE_OPENED = "DECISION_CASE_OPENED"
+    OBSERVATION_RECORDED = "BUREAU_OBSERVATION_RECORDED"
+    READY = "DECISION_READY"
+    DECISION_RECORDED = "DECISION_RECORDED"
+    DECISION_CORRECTED = "DECISION_CORRECTED"
+    OUTCOME_ISSUED = "OFFICIAL_OUTCOME_ISSUED"
+    RATIFICATION_RECORDED = "RATIFICATION_RECORDED"
+    APPEAL_SUBMITTED = "APPEAL_SUBMITTED"
+    SAC_RECOMMENDATION_READY = "SAC_RECOMMENDATION_READY"
+    APPEAL_DECIDED = "APPEAL_DECIDED"
+    CASE_CLOSED = "DECISION_CASE_CLOSED"
+    SYNC_PENDING = "EXTERNAL_SYNC_PENDING"
+
+
+APPEAL_DEMO_BANNER = "DEMO ONLY — fictional decision, ratification and appeal configuration. Not AICTE's rules."

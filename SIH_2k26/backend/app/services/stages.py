@@ -266,6 +266,9 @@ def create_decision_handoff(db: Session, app: Application, actor: User | None, r
     core.log_event(db, via, actor, "decision_handoff_ready", request=request, object_type="decision_handoff", object_id=row.id, stage="ROUTE", application_id=app.id, detail={"stages": [s["stage_key"] for s in stages]})
     if via is not None:
         ctexts.decision_handoff_ready(db, via, app)
+    from app.services import decisions  # Phase 6: the hand-off opens the Executive Committee's decision case (idempotent, same transaction)
+
+    decisions.open_case(db, row, app, actor, request)
     return row
 
 
@@ -292,6 +295,13 @@ def reconcile(db: Session) -> int:
         try:
             _act_on(db, app, case, rt, None, None)
             made += 0
+        except Exception:  # noqa: BLE001
+            db.rollback()
+    from app.services import decisions
+
+    for h in db.scalars(select(DecisionHandoff)):
+        try:
+            decisions.open_case(db, h, db.get(Application, h.application_id), None, None)
         except Exception:  # noqa: BLE001
             db.rollback()
     db.commit()

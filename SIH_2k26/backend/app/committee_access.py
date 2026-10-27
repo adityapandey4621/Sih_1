@@ -26,6 +26,7 @@ from app.services.errors import not_found
 _PERMS = {
     CommitteeStage.EVC: (Permission.EVC_QUEUE, Permission.EVC_COORDINATE, Permission.EVC_WORK),
     CommitteeStage.SHC: (Permission.SHC_QUEUE, Permission.SHC_COORDINATE, Permission.SHC_WORK),
+    CommitteeStage.SAC: (Permission.SAC_QUEUE, Permission.SAC_COORDINATE, Permission.SAC_WORK),
 }
 
 
@@ -81,4 +82,8 @@ def can_read_documents(db: Session, user: User, application_id: uuid.UUID) -> bo
     for case in db.scalars(select(CommitteeCase).where(CommitteeCase.application_id == application_id)):
         if scope_of(db, user, case):
             return True
+    if Permission.DECISION_QUEUE in permissions_for(user.role):  # Phase 6: the Executive Committee, Regulation Bureau and Council read the record behind a decision
+        from app.models_decisions import DecisionCase
+
+        return db.scalar(select(exists().where(DecisionCase.application_id == application_id))) or False
     return False

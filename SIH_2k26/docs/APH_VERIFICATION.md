@@ -31,3 +31,11 @@
 2. The official-classified drafts carry a policy stating that **no fixed period exists** (`duration` empty, source verified). The policy resolver treats that as *settled*: it no longer raises a configuration gap or the "response period unresolved" blocker, and still sets **no** due date. A missing policy, or one citing an unverified source, still blocks a non-demo notice.
 3. Re-scrutiny cannot record new findings (cl. 1.8(g)); the API refuses and the case page explains why.
 4. A non-demo notice is still blocked by the missing approved template (and the unselectable official reviewer assignment). Those are the remaining reasons it cannot be issued.
+
+## Addendum — Phase 6 reading (Executive Committee, Council, appeals)
+
+Re-read for the decision and appeal phase (Ch. I cl. 1.10–1.11; Ch. II cl. 2.23–2.25; no new source obtained):
+
+- **Stated:** the Executive Committee decides after considering committee recommendations and Regulation Bureau views (1.10(a)); outcomes LoA / LoD / LoR, with a speaking order for a rejection (1.10(b)); the Council ratifies Executive Committee decisions (1.10(a), 2.25(a)); an institution may appeal once to the Council within 7 days — from the issue of the LoD (1.11(a)) or from the upload of the Executive Committee decision (2.24(a)); the SAC recommends or does not recommend, or recommends a further scrutiny / EVC (1.11(d)); the Council's decision is final (1.11(e), 2.24(f)).
+- **Not stated:** how the 7 days are counted, the cut-off time, which outcomes are appealable under 2.24, the vocabulary of the Council's ratification, whether issue waits for ratification, the SAC's composition and hearing format, the Council's outcomes on an appeal. None is encoded as fact; each is demo-only configuration and listed as a gap.
+- **Unverified:** the reported December 2025 corrigendum (official pages returned HTTP 404 / connection reset on 2026-10-27).

@@ -219,7 +219,7 @@ export function SchedulePanel({ detail, run, busy, error }: PanelCtx) {
   const what = detail.stage === 'EVC' ? 'visit' : 'hearing'
   const a = detail.allowed_actions
   const active = detail.schedule.active
-  const modes = detail.stage === 'EVC' ? detail.policy?.modes ?? [] : detail.policy?.shc?.hearing_modes ?? []
+  const modes = detail.stage === 'EVC' ? detail.policy?.modes ?? [] : detail.stage === 'SAC' ? detail.policy?.sac?.hearing_modes ?? [] : detail.policy?.shc?.hearing_modes ?? []
   const [open, setOpen] = useState<null | 'propose' | 'reschedule'>(null)
   const [f, setF] = useState({ start_local: '', timezone: 'Asia/Kolkata', mode: '', mode_reason: '', location: '', access_details: '', reason: '' })
   const [key, setKey] = useState(newKey)
@@ -390,7 +390,7 @@ export function CompletePanel({ detail, run, busy, error, label }: PanelCtx & { 
         confirmDisabled={note.trim().length < 5}
         onCancel={() => setOpen(false)}
         onConfirm={async () => {
-          const ok = await run(() => (detail.stage === 'EVC' ? committeeApi.completeEvc(detail.id, note.trim(), detail.row_version) : committeeApi.completeShc(detail.id, note.trim(), detail.row_version)))
+          const ok = await run(() => (detail.stage === 'EVC' ? committeeApi.completeEvc(detail.id, note.trim(), detail.row_version) : detail.stage === 'SAC' ? committeeApi.completeSac(detail.id, note.trim(), detail.row_version) : committeeApi.completeShc(detail.id, note.trim(), detail.row_version)))
           if (ok) setOpen(false)
         }}
       >

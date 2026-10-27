@@ -16,9 +16,9 @@ from app.models_committee import CommitteeCase, CommitteeSchedule
 from app.rbac import Role
 from app.services import notifications as nt
 
-_COORD = {CommitteeStage.EVC: Role.EVC_COORDINATOR, CommitteeStage.SHC: Role.SHC_COORDINATOR}
-_NAME = {CommitteeStage.EVC: "expert visit (EVC)", CommitteeStage.SHC: "SHC compliance / hearing"}
-_PATH = {CommitteeStage.EVC: "evc", CommitteeStage.SHC: "shc"}
+_COORD = {CommitteeStage.EVC: Role.EVC_COORDINATOR, CommitteeStage.SHC: Role.SHC_COORDINATOR, CommitteeStage.SAC: Role.SAC_COORDINATOR}
+_NAME = {CommitteeStage.EVC: "expert visit (EVC)", CommitteeStage.SHC: "SHC compliance / hearing", CommitteeStage.SAC: "SAC appeal review"}
+_PATH = {CommitteeStage.EVC: "evc", CommitteeStage.SHC: "shc", CommitteeStage.SAC: "sac"}
 
 
 def _when(d: datetime | None) -> str:
@@ -92,15 +92,16 @@ def report_awaited(db: Session, case: CommitteeCase, app: Application) -> int:
 
 def report_submitted(db: Session, case: CommitteeCase, app: Application, report_id: uuid.UUID, version: int) -> int:
     st = _stage(case)
-    what = "EVC report" if st == CommitteeStage.EVC else "SHC recommendation"
+    what = {CommitteeStage.EVC: "EVC report", CommitteeStage.SHC: "SHC recommendation", CommitteeStage.SAC: "SAC recommendation"}[st]
     return _send(db, CommitteeEvent.REPORT_SUBMITTED if st == CommitteeStage.EVC else CommitteeEvent.RECOMMENDATION_SUBMITTED, coordinators(db, case), "coordinator", str(report_id),
                  f"{what} submitted (version {version}): {app.reference}", f"A {what.lower()} was submitted for {app.reference}. It is a record for the next stage, not a decision.", _link(case), case, app)
 
 
 def stage_completed(db: Session, case: CommitteeCase, app: Application) -> int:
     st = _stage(case)
+    tail = "This is not the Council's decision; the recommendation now waits for it." if st == CommitteeStage.SAC else "This is not an approval; the route decides what follows."
     n = _send(db, CommitteeEvent.STAGE_COMPLETED, coordinators(db, case), "coordinator", str(case.id), f"{st.value} stage completed: {app.reference}",
-              f"The {_NAME[st]} stage was recorded as complete. This is not an approval; the route decides what follows.", _link(case), case, app)
+              f"The {_NAME[st]} stage was recorded as complete. {tail}", _link(case), case, app)
     if st == CommitteeStage.EVC:
         n += _send(db, CommitteeEvent.STAGE_COMPLETED, nt.institution_users(db, app.institution_id), "institution", str(case.id), f"Expert visit report available: {app.reference}",
                    "The expert visit stage is complete and its report is available on your application page. This is not a decision.", f"/app/applications/{app.id}", case, app)

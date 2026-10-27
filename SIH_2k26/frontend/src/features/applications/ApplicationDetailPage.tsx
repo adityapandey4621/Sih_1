@@ -6,6 +6,7 @@ import { usePolling } from '../../lib/usePolling'
 import { useResource } from '../../lib/useResource'
 import { EvidencePanel } from '../evidence/EvidencePanel'
 import { CommitteeStatusPanel } from '../committee/InstitutionPanels'
+import { DecisionStatusPanel } from '../decisions/InstitutionDecisionPanel'
 import { ScrutinyStatusPanel } from '../scrutiny/InstitutionPanels'
 import { ResourceView } from '../admin/shared'
 import { PageHeader } from '../shell/PageHeader'
@@ -27,10 +28,11 @@ function SubmittedView({ detail, justSubmitted, refreshKey, onProcessingChanged 
         </Alert>
       )}
       <Alert tone="info">
-        This application is read-only. If scrutiny needs something from you, a formal notice appears below and under Notices, and corrected evidence is supplied through that notice. Expert visits and committee compliance requests appear below when your application’s route requires them. Decisions and appeals are not yet built.
+        This application is read-only. If scrutiny needs something from you, a formal notice appears below and under Notices, and corrected evidence is supplied through that notice. Expert visits and committee compliance requests appear below when your application’s route requires them. Once the competent authority issues an outcome, it and any appeal you may make appear below.
       </Alert>
       <ScrutinyStatusPanel applicationId={detail.id} refreshKey={refreshKey} />
       <CommitteeStatusPanel applicationId={detail.id} refreshKey={refreshKey} />
+      <DecisionStatusPanel applicationId={detail.id} refreshKey={refreshKey} />
       {detail.rule_version.is_demo && <DemoBanner text={detail.rule_version.demo_banner} />}
       <SummaryPanel detail={detail} />
       <Section title="Submitted details">

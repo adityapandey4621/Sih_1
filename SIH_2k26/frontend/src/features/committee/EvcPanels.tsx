@@ -289,7 +289,7 @@ function AmendBox({ ctx }: { ctx: PanelCtx }) {
         confirmDisabled={reason.trim().length < 5}
         onCancel={() => setOpen(false)}
         onConfirm={async () => {
-          const ok = await run(() => (detail.stage === 'EVC' ? committeeApi.amendReport(detail.id, reason.trim(), detail.row_version) : committeeApi.amendRecommendation(detail.id, reason.trim(), detail.row_version)))
+          const ok = await run(() => (detail.stage === 'EVC' ? committeeApi.amendReport(detail.id, reason.trim(), detail.row_version) : detail.stage === 'SAC' ? committeeApi.sacAmendRecommendation(detail.id, reason.trim(), detail.row_version) : committeeApi.amendRecommendation(detail.id, reason.trim(), detail.row_version)))
           if (ok) setOpen(false)
         }}
       >

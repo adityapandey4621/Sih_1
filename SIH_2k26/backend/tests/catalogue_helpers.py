@@ -91,6 +91,7 @@ def build_published(
     route_stages: "list[RouteStageIn] | None" = None,
     deadlines: "list[DeadlinePolicyIn] | None" = None,
     response_days: int | None = None,
+    appeal_days: int | None = None,
 ) -> Cat:
     """Create (or reuse) author/approver, a category and a rule set, optionally taken all the way to published.
 
@@ -122,7 +123,9 @@ def build_published(
                     DeadlinePolicyIn(
                         policy_key="resp", label="Response", deadline_type="INTERNAL_SLA", trigger_event="deficiency_notice_issued", source_id=src_id,
                         **({"duration_value": response_days, "duration_unit": "days", "calendar_convention": "CALENDAR"} if response_days else {}),
-                    )
+                    ),
+                    *([DeadlinePolicyIn(policy_key="appeal", label="Appeal window", deadline_type="STATUTORY", trigger_event="executive_committee_decision_uploaded", source_id=src_id, clause_ref="test",
+                                        duration_value=appeal_days, duration_unit="days", calendar_convention="CALENDAR")] if appeal_days else []),
                 ],
                 row_version=v.row_version,
             ),

@@ -101,3 +101,15 @@ Full description in `COMMITTEE.md`. The two committee processes share one `commi
 ### Phase 5 control flow
 
 scrutiny completes -> hand-off row -> `stages.on_scrutiny_handoff` (same transaction) -> EVC / SHC case (idempotent) or a determination by a coordinator -> selection provider -> schedule (propose, confirm) -> visit, observations, evidence, report (immutable version) -> coordinator completes -> `route_transitions` -> next stage, determination, or `decision_handoffs`. SHC: requirements -> compliance round -> institution response (new document versions) -> review (findings, hearing, recommendation) -> completion -> the same route step. Recovery: `python -m app.reconcile_committee`.
+
+## Phase 6 — decisions, Council steps and SAC appeals
+
+Three authorities, three records: `EcDecision` (Executive Committee), `CouncilDecision` (ratification or appeal decision), `Appeal` + the SAC `CommitteeCase`. Their services (`services/decisions.py`, `appeals.py`, `sac.py`) reuse the Phase 5 machinery: compare-and-set transitions (`DECISION_TRANSITIONS`), ORM guards for immutable and append-only records, idempotency keys, `row_version`, in-app notifications, the audit log, the committee policy / frozen-snapshot pattern (stage `DEC`, stage `SAC`) and the selection-provider boundary for SAC members.
+
+### Phase 6 data model (migration `0006`)
+
+`decision_cases` (one per application; unique hand-off), `bureau_observations`, `ec_decisions` (versioned), `official_issuances` (one live per case), `council_decisions` (`is_live`, partial unique indexes), `appeals` (one per application), `appeal_documents`, `external_syncs` (one per subject and kind), `post_decision_handoffs`. The Phase 5 CHECK constraints for policy stage, case stage and report kind are widened for `SAC` and `DEC`.
+
+### Phase 6 control flow
+
+`DecisionHandoff` → `decisions.open_case` → Bureau observations → `record_decision` → `issue_outcome` (+ `portal_sync.record`) → `record_ratification` → [appeal: `appeals.submit` → SAC `CommitteeCase` → `sac.complete` → `appeals.on_sac_completed` → `record_council_decision`] → `close_case` → `PostDecisionHandoff`. `python -m app.reconcile_decisions` runs the route reconcile, retries pending syncs and finalises expired appeal windows. No scheduler is introduced.

@@ -24,6 +24,7 @@ from app.domain import CommitteeStage
 from app.models import User
 from app.models_applications import Application
 from app.models_committee import CommitteeCase, DecisionHandoff
+from app.models_decisions import Appeal
 from app.rbac import Permission, Role
 from app.schemas_committee import (
     CancelIn,
@@ -54,6 +55,7 @@ from app.schemas_evidence import ApplicationEvidenceOut
 from app.services import applications as app_svc
 from app.services import evc as evc_svc
 from app.services import scheduling, selection, stages
+from app.services import sac as sac_svc
 from app.services import shc as shc_svc
 from app.services.errors import ServiceError
 from app.storage import LocalStorage, StorageError, get_storage
@@ -432,6 +434,76 @@ def decision_handoffs(current: CurrentUser = Depends(require_any_permission(Perm
         app = db.get(Application, h.application_id)
         rows.append({"application": pr._app_summary(db, app), "status": h.status, "created_at": h.created_at, "stages": [s["stage_key"] for s in h.basis["stages"]], "decided": False, "note": h.basis["note"]})
     return rows
+
+
+
+# =====================================================================================================
+# SAC (Phase 6): the review of an appeal. Opened only by an eligible appeal; recommends to the Council, which decides.
+# =====================================================================================================
+
+sac = APIRouter(prefix="/api/sac", tags=["sac"], dependencies=_DEPS)
+_common(sac, CommitteeStage.SAC, Permission.SAC_QUEUE, Permission.SAC_COORDINATE)
+can_sac_coord = require_permission(Permission.SAC_COORDINATE)
+can_sac_work = require_permission(Permission.SAC_WORK)
+_A = CommitteeStage.SAC
+
+
+@sac.post("/cases/{case_id}/proceedings", status_code=201)
+def sac_proceeding(case_id: uuid.UUID, body: ProceedingIn, request: Request, current: CurrentUser = Depends(can_sac_work), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    sac_svc.record_proceeding(db, current.user, case_id, body.model_dump(mode="json"), request)
+    db.commit()
+    return _detail(db, current, case_id, _A, settings, request)
+
+
+@sac.put("/cases/{case_id}/recommendation")
+def sac_recommendation_draft(case_id: uuid.UUID, body: RecommendationDraftIn, request: Request, current: CurrentUser = Depends(can_sac_work), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    sac_svc.save_draft(db, current.user, case_id, body.option, body.sections, body.row_version, request)
+    db.commit()
+    return _detail(db, current, case_id, _A, settings, request)
+
+
+@sac.post("/cases/{case_id}/recommendation/submit")
+def sac_recommendation_submit(case_id: uuid.UUID, body: SubmitIn, request: Request, response: Response, current: CurrentUser = Depends(can_sac_work), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    _, _, replay = sac_svc.submit_recommendation(db, current.user, case_id, body.idempotency_key, body.row_version, request)
+    db.commit()
+    if replay:
+        response.headers["X-Idempotent-Replay"] = "true"
+    return _detail(db, current, case_id, _A, settings, request)
+
+
+@sac.post("/cases/{case_id}/recommendation/amend")
+def sac_recommendation_amend(case_id: uuid.UUID, body: ReasonVersionIn, request: Request, current: CurrentUser = Depends(can_sac_coord), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    sac_svc.open_amendment(db, current.user, case_id, body.reason, body.row_version, request)
+    db.commit()
+    return _detail(db, current, case_id, _A, settings, request)
+
+
+@sac.post("/cases/{case_id}/complete")
+def sac_complete(case_id: uuid.UUID, body: SummaryIn, request: Request, current: CurrentUser = Depends(can_sac_coord), db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> dict:
+    sac_svc.complete(db, current.user, case_id, body.summary, body.row_version, request)
+    db.commit()
+    return _detail(db, current, case_id, _A, settings, request)
+
+
+@sac.get("/appeal-documents/{document_id}/download")
+def sac_appeal_document(document_id: uuid.UUID, request: Request, current: CurrentUser = Depends(require_permission(Permission.SAC_QUEUE)), db: Session = Depends(get_db), storage: LocalStorage = Depends(get_storage)) -> StreamingResponse:
+    """An appeal's supporting file, for the SAC coordinator or an assigned member of that appeal's SAC case."""
+    from app.models_decisions import AppealDocument
+
+    doc = db.get(AppealDocument, document_id)
+    ap = db.get(Appeal, doc.appeal_id) if doc else None
+    if doc is None or ap is None or ap.sac_case_id is None or doc.kind != "FILE":
+        raise ServiceError(404, "not_found", "Document not found.")
+    committee_access.get_case(db, current.user, ap.sac_case_id, request, stage=_A)  # scope: coordinator or assigned member, else "not found" + audit
+    audit.record(db, "appeal.document_downloaded", request=request, actor=current.user, target_type="appeal_document", target_id=doc.id)
+    db.commit()
+    try:
+        with storage.open(doc.storage_key) as fh:
+            data = fh.read()
+    except (OSError, StorageError) as exc:
+        raise ServiceError(503, "storage_unavailable", "The stored file could not be read just now. Please try again.") from exc
+    return StreamingResponse(iter([data]), media_type=doc.media_type or "application/octet-stream", headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.original_filename or 'file')}", "Content-Length": str(len(data)),
+                                                                                                          "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
 
 
 _ = (get_current_user, Role, CommitteeCase)
