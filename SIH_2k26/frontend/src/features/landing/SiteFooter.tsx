@@ -8,7 +8,7 @@ export function SiteFooter() {
         <div>
           <Wordmark inverse />
           <p className="site-footer__note">
-            Dossier is an independent project supporting an approval workflow. It is not an official AICTE website, service or seal, and it is not connected to AICTE systems.
+            PACE is an independent project supporting an approval workflow. It is not an official AICTE website, service or seal, and it is not connected to AICTE systems.
           </p>
         </div>
         <nav aria-label="Footer">

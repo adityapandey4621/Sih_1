@@ -1,4 +1,4 @@
-# Dossier — AICTE approval workflow automation (SIH 2026, PS 26262)
+# PACE — AICTE approval workflow automation (SIH 2026, PS 26262)
 
 Integrated approval workflow, compliance monitoring and alert management. The product **supports** the official process; authorised officials make every regulatory decision. It is not an official AICTE service.
 

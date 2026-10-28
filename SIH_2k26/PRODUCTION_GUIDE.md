@@ -1,4 +1,4 @@
-# Dossier — Production & Team Deployment Guide
+# PACE — Production & Team Deployment Guide
 
 This guide gives you and your teammates everything needed to run the project locally or deploy it to a live production server.
 

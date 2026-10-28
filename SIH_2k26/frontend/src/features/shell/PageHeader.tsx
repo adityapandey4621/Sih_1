@@ -10,7 +10,7 @@ export interface Crumb {
 export function usePageTitle(title: string) {
   useEffect(() => {
     const previous = document.title
-    document.title = `${title} — Dossier`
+    document.title = `${title} — PACE`
     return () => {
       document.title = previous
     }

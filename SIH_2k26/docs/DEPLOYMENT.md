@@ -53,7 +53,7 @@ With `ENVIRONMENT=production` the API **will not start** (and says why) if any o
 |---|---|
 | `ENVIRONMENT` | `production` |
 | `DATABASE_URL` or `DATABASE_URL_FILE` | `postgresql+psycopg://user:password@host:5432/dbname` (the file form for secrets) |
-| `ALLOWED_ORIGINS` | the exact https origin(s) of the web app, e.g. `https://dossier.example.org` (checked against `Origin` on every state-changing request) |
+| `ALLOWED_ORIGINS` | the exact https origin(s) of the web app, e.g. `https://pace.example.org` (checked against `Origin` on every state-changing request) |
 | `TRUSTED_PROXY_COUNT` | how many reverse proxies append to `X-Forwarded-For` (1 with the supplied nginx). **0 ignores the header**; setting it wrongly lets a client spoof its address in logs and rate limits |
 | `STORAGE_DIR` | private attachment directory (a persistent, access-restricted volume) |
 | `SCANNER=clamd`, `CLAMD_HOST`, `CLAMD_PORT`, `REQUIRE_MALWARE_SCAN` | malware scanning |
@@ -71,7 +71,7 @@ Secrets can be supplied as files: `DATABASE_URL_FILE`, `AICTE_API_KEY_FILE`, `AI
 ```
 mkdir secrets
 # create secrets/db_password, secrets/database_url, secrets/aicte_api_key, secrets/aicte_hmac_secret   (see secrets/README.md)
-set SIH_PUBLIC_HOST=dossier.example.org          # PowerShell: $env:SIH_PUBLIC_HOST="..."
+set SIH_PUBLIC_HOST=pace.example.org          # PowerShell: $env:SIH_PUBLIC_HOST="..."
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 

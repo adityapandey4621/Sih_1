@@ -15,7 +15,7 @@ x-prod-env: &prod-env
   ENVIRONMENT: production
   DATABASE_URL: ""  # clears the development value from docker-compose.yml so the secret file below is used
   DATABASE_URL_FILE: /run/secrets/database_url
-  ALLOWED_ORIGINS: https://${SIH_PUBLIC_HOST:?set SIH_PUBLIC_HOST to the public host name, for example dossier.example.org}
+  ALLOWED_ORIGINS: https://${SIH_PUBLIC_HOST:?set SIH_PUBLIC_HOST to the public host name, for example pace.example.org}
   TRUSTED_PROXY_COUNT: "1"
   ALLOW_DEMO_RULES: "false"
   SCANNER: clamd

@@ -1,4 +1,4 @@
-﻿"""Phase 8 hardening: security headers, request size, rate limiting, error responses, client IPs, readiness, secrets and production refusal."""
+"""Phase 8 hardening: security headers, request size, rate limiting, error responses, client IPs, readiness, secrets and production refusal."""
 
 import os
 import tempfile
@@ -194,8 +194,8 @@ def test_allowed_origins_accepts_a_comma_list_and_a_json_list(monkeypatch):
     because pydantic-settings tried to JSON-parse it before the validator saw it."""
     monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:8080")
     assert Settings(_env_file=None).allowed_origins == ["http://localhost:8080"]
-    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:8080, https://dossier.example.org ,")
-    assert Settings(_env_file=None).allowed_origins == ["http://localhost:8080", "https://dossier.example.org"]
+    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:8080, https://pace.example.org ,")
+    assert Settings(_env_file=None).allowed_origins == ["http://localhost:8080", "https://pace.example.org"]
     monkeypatch.setenv("ALLOWED_ORIGINS", '["http://a.example.org", "https://b.example.org"]')
     assert Settings(_env_file=None).allowed_origins == ["http://a.example.org", "https://b.example.org"]
     monkeypatch.delenv("ALLOWED_ORIGINS")

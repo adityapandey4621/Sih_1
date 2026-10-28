@@ -17,7 +17,7 @@ Format: decision — rationale. Reversible unless stated.
 13. **Invitations are shown to the administrator as a one-time link** because no email provider is configured. The UI says so explicitly; nothing claims an email was sent.
 14. **Password policy:** minimum 12 characters, maximum 128, no composition rules (NIST 800-63B style).
 15. **Tests run on SQLite for speed; the app is verified against PostgreSQL** (see README for the exact checks run). Models avoid dialect-specific types so both work.
-17. **Product name "Dossier" is a placeholder wordmark** (typographic only, no emblem). Change in `Wordmark.tsx`, `index.html`, `landing.content.ts`.
+17. **Product name is "PACE"** (typographic wordmark, no emblem). Configured in `Wordmark.tsx`, `index.html`, `landing.content.ts`.
 18. **`GET /api/auth/session` returns 200 + `null` when signed out**, used for the initial probe so public pages don't log 401 errors. `/api/auth/me` still returns 401.
 19. **Invitation token lives in the URL fragment** (`#token=…`), so it never reaches server logs, proxies or Referer headers; it is removed from the address bar after use.
 20. **Operator CLI `app.set_password`** is the interim recovery path (no email provider). Throttling can be used to lock a victim out for the window (known trade-off of per-email throttling; window is short).

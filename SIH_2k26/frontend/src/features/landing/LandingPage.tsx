@@ -87,7 +87,7 @@ export default function LandingPage() {
                 The system routes work, checks evidence, keeps the clock and keeps the record. Scrutiny, committee judgement and the final decision stay with the officials the process names.
               </p>
               <p className="security__disclaimer">
-                Dossier is not an official AICTE service and makes no claim of endorsement or connection. Integration with AICTE systems would be added only where authorised.
+                PACE is not an official AICTE service and makes no claim of endorsement or connection. Integration with AICTE systems would be added only where authorised.
               </p>
             </div>
             <dl className="assurances">
