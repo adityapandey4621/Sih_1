@@ -166,34 +166,53 @@ def upgrade() -> None:
     # Backfill (hand-written): Phase 2 uploads become versions of one slot per (application, checklist item).
     # Earlier uploads that were replaced become superseded versions; removed drafts stay removed.
     bind = op.get_bind()
-    bind.execute(sa.text("""
-        INSERT INTO document_slots (id, application_id, item_key, created_at)
-        SELECT gen_random_uuid(), application_id, item_key, MIN(uploaded_at)
-        FROM application_documents GROUP BY application_id, item_key
-    """))
-    bind.execute(sa.text("""
-        UPDATE application_documents d SET slot_id = s.id
-        FROM document_slots s WHERE s.application_id = d.application_id AND s.item_key = d.item_key
-    """))
-    bind.execute(sa.text("""
-        UPDATE application_documents d SET version_number = r.n
-        FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY slot_id ORDER BY uploaded_at, id) AS n FROM application_documents) r
-        WHERE r.id = d.id
-    """))
-    bind.execute(sa.text("""
-        UPDATE application_documents d SET previous_version_id = p.id
-        FROM application_documents p WHERE p.slot_id = d.slot_id AND p.version_number = d.version_number - 1
-    """))
-    bind.execute(sa.text("""
-        UPDATE application_documents SET superseded_at = COALESCE(removed_at, uploaded_at)
-        WHERE removed_at IS NOT NULL
-    """))
-    bind.execute(sa.text("""
-        UPDATE document_slots s SET current_version_id = d.id
-        FROM application_documents d WHERE d.slot_id = s.id AND d.removed_at IS NULL
-    """))
-    # superseded_at stays NULL for the current version and for removed drafts (removed_at marks those)
-    bind.execute(sa.text("UPDATE application_documents SET superseded_at = NULL WHERE removed_at IS NOT NULL"))
+    if bind.dialect.name == "postgresql":
+        bind.execute(sa.text("""
+            INSERT INTO document_slots (id, application_id, item_key, created_at)
+            SELECT gen_random_uuid(), application_id, item_key, MIN(uploaded_at)
+            FROM application_documents GROUP BY application_id, item_key
+        """))
+        bind.execute(sa.text("""
+            UPDATE application_documents d SET slot_id = s.id
+            FROM document_slots s WHERE s.application_id = d.application_id AND s.item_key = d.item_key
+        """))
+        bind.execute(sa.text("""
+            UPDATE application_documents d SET version_number = r.n
+            FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY slot_id ORDER BY uploaded_at, id) AS n FROM application_documents) r
+            WHERE r.id = d.id
+        """))
+        bind.execute(sa.text("""
+            UPDATE application_documents d SET previous_version_id = p.id
+            FROM application_documents p WHERE p.slot_id = d.slot_id AND p.version_number = d.version_number - 1
+        """))
+        bind.execute(sa.text("""
+            UPDATE application_documents SET superseded_at = COALESCE(removed_at, uploaded_at)
+            WHERE removed_at IS NOT NULL
+        """))
+        bind.execute(sa.text("""
+            UPDATE document_slots s SET current_version_id = d.id
+            FROM application_documents d WHERE d.slot_id = s.id AND d.removed_at IS NULL
+        """))
+        bind.execute(sa.text("UPDATE application_documents SET superseded_at = NULL WHERE removed_at IS NOT NULL"))
+    else:
+        import uuid as _uuid
+        docs = bind.execute(sa.text("SELECT id, application_id, item_key, uploaded_at, removed_at FROM application_documents ORDER BY uploaded_at, id")).fetchall()
+        slots: dict = {}
+        for d_id, app_id, item_key, up_at, rem_at in docs:
+            pair = (app_id, item_key)
+            if pair not in slots:
+                slot_id = str(_uuid.uuid4()).replace("-", "") if isinstance(app_id, str) else _uuid.uuid4()
+                bind.execute(sa.text("INSERT INTO document_slots (id, application_id, item_key, created_at) VALUES (:id, :app_id, :item_key, :created_at)"),
+                             {"id": slot_id, "app_id": app_id, "item_key": item_key, "created_at": up_at})
+                slots[pair] = (slot_id, 0, None)
+            slot_id, v_num, prev_id = slots[pair]
+            v_num += 1
+            sup_at = up_at if rem_at is not None else None
+            bind.execute(sa.text("UPDATE application_documents SET slot_id = :slot_id, version_number = :v_num, previous_version_id = :prev_id, superseded_at = :sup_at WHERE id = :id"),
+                         {"slot_id": slot_id, "v_num": v_num, "prev_id": prev_id, "sup_at": sup_at, "id": d_id})
+            if rem_at is None:
+                bind.execute(sa.text("UPDATE document_slots SET current_version_id = :d_id WHERE id = :slot_id"), {"d_id": d_id, "slot_id": slot_id})
+            slots[pair] = (slot_id, v_num, d_id)
 
     op.create_foreign_key('fk_slot_current_version', 'document_slots', 'application_documents', ['current_version_id'], ['id'], use_alter=True)
     op.alter_column('application_documents', 'slot_id', nullable=False)
