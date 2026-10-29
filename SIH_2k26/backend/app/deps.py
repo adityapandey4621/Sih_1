@@ -28,7 +28,10 @@ def csrf_protect(request: Request, settings: Settings = Depends(get_settings)) -
         return
     origin = request.headers.get("origin")
     if origin and origin not in settings.allowed_origins:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Request origin not allowed.")
+        in_dev = settings.environment != "production"
+        is_tunnel = origin.endswith(".trycloudflare.com") or origin.endswith(".ngrok-free.app") or "*" in settings.allowed_origins
+        if not (in_dev and is_tunnel):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Request origin not allowed.")
     cookie = request.cookies.get(settings.csrf_cookie_name)
     header = request.headers.get("x-csrf-token")
     if not cookie or not header or not tokens_match(cookie, header):
