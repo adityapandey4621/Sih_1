@@ -46,3 +46,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local legacy working directory
+SIH_2k26/
+
